@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Star, ShoppingCart } from "lucide-react";
 
+
 const BookShow = () => {
     const [books, setBooks] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -12,7 +13,7 @@ const BookShow = () => {
     useEffect(() => {
         const fetchBooks = async () => {
             try {
-                const response = await fetch('http://localhost:8000/event/show/35');
+                const response = await fetch(`${import.meta.env.VITE_BASE_URL}event/show/35`);
                 const data = await response.json();
                 setBooks([...data.data]);
             } catch (err) {
