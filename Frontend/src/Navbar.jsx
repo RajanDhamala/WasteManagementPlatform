@@ -26,10 +26,10 @@ const Navbar = () => {
                         <h1 className="text-2xl font-bold">EcoClean</h1>
                     </div>
                     <div className="hidden md:flex items-center space-x-8">
-                        <Link className="hover:text-green-200 font-medium" to={'/'}>Home</Link>
-                        <Link className="hover:text-green-200 font-medium" to={"/events"}>Events</Link>
-                        <Link className="hover:text-green-200 font-medium" to={"/communities"}>Communities</Link>
-                        <Link className="hover:text-green-200 font-medium" to={"/impact"}>Impact</Link>
+                        <Link className="hover:text-green-200 font-medium" to={'/'} draggable='false'>Home</Link>
+                        <Link className="hover:text-green-200 font-medium" to={"/events"} draggable='false'>Events</Link>
+                        <Link className="hover:text-green-200 font-medium" to={"/communities"} draggable='false'>Communities</Link>
+                        <Link className="hover:text-green-200 font-medium" to={"/impact"} draggable='false'>Impact</Link>
                         <button className="bg-white text-green-600 px-4 py-2 rounded-lg font-medium hover:bg-green-50">
                             Login
                         </button>

@@ -94,7 +94,7 @@ const LandingPage = () => {
                 location="Bargachhi, Biratnagar-4"
                 Peoples="37"
                 status='Ongoing'
-              
+                image={'./defulthu.jpg'}
               />
             </div>
             

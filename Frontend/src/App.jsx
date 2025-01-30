@@ -5,6 +5,7 @@ import useUserContext from './hooks/useUserContext';
 import EventSection from './MainSections/EventSection';
 import { BrowserRouter,Routes,Route,Link } from 'react-router-dom';
 import Navbar from './Navbar';
+import SlugEvent from './MainSections/SlugEvent';
 
 const App = () => {
 
@@ -16,6 +17,7 @@ const App = () => {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/events" element={<EventSection />} />
+          <Route path="/events/:title" element={<SlugEvent />} />
         </Routes>
       </BrowserRouter>
    </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import EventCard from './EventCard';
-import { Camera, Calendar, MapPin, Users, Plus, Clock, X, Upload } from 'lucide-react';
+import { Camera, Calendar, MapPin, Users, Plus, Clock, X, Upload, Loader2 } from 'lucide-react';
 import axios from 'axios';
 
 function EventSection() {
@@ -17,6 +17,7 @@ function EventSection() {
   });
   const [imagePreview, setImagePreview] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -106,9 +107,29 @@ function EventSection() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Basic validation
+    if (!formData.images.length) {
+      alert('Please select at least one image');
+      return;
+    }
+
+    setIsSubmitting(true);
+    
     try {
       const formDataToSend = new FormData();
       
+      // Log the data being sent
+      console.log('Sending form data:', {
+        title: formData.title,
+        date: formData.date,
+        time: formData.time,
+        location: formData.location,
+        description: formData.description,
+        requiredVolunteers: formData.requiredVolunteers,
+        problemStatement: formData.problemStatement,
+        imageCount: formData.images.length
+      });
+
       formDataToSend.append('title', formData.title);
       formDataToSend.append('date', formData.date);
       formDataToSend.append('time', formData.time);
@@ -122,19 +143,39 @@ function EventSection() {
       });
 
       const response = await axios.post(
-        `${import.meta.env.VITE_BASE_URL}event/AddEvent`,
-        formDataToSend,  
+        `${import.meta.env.VITE_BASE_URL}event/eventform`,
+        formDataToSend,
         {
-          withCredentials: true,
           headers: {
-            'Content-Type': 'multipart/form-data', 
+            'Content-Type': 'multipart/form-data',
+          },
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            console.log('Upload progress:', percentCompleted);
           },
         }
       );
 
-      if (response.status === 200 || response.status === 201) {
-        setIsCreateModalOpen(false);
-        setImagePreview(null);
+      console.log('Server response:', response.data);
+
+      if (response.data.statusCode === 200) {
+        const successModal = document.createElement('div');
+        successModal.innerHTML = `
+          <div class="fixed inset-0 flex items-center justify-center z-50">
+            <div class="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-xl transform transition-all duration-300 animate-success-pop">
+              <div class="text-center">
+                <div class="w-16 h-16 bg-green-100 rounded-full mx-auto flex items-center justify-center mb-4">
+                  <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Event Created Successfully!</h3>
+                <p class="text-gray-600">Your event has been created and is now live.</p>
+              </div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(successModal);
         setFormData({
           title: '',
           date: '',
@@ -145,13 +186,19 @@ function EventSection() {
           images: [],
           problemStatement: '',
         });
-        
-       
-        alert('Event created successfully!');
+        setImagePreview(null);
+        setIsCreateModalOpen(false);
+        setTimeout(() => {
+          successModal.remove();
+        }, 2000);
+      } else {
+        throw new Error(response.data.message || 'Failed to create event');
       }
     } catch (error) {
-      console.error('Error creating event:', error);
+      console.error('Error details:', error);
       alert(error.response?.data?.message || 'Error creating event. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -203,6 +250,7 @@ function EventSection() {
                 location="Bargachhi, Biratnagar-4"
                 Peoples="37"
                 status='Ongoing'
+                image={'./defulthu.jpg'}
               
               />
           {/* Add more EventCards here */}
@@ -459,10 +507,22 @@ function EventSection() {
                     </button>
                     <button
                       type="submit"
-                      className="px-6 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors flex items-center gap-2"
+                      disabled={isSubmitting}
+                      className={`px-6 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors flex items-center gap-2 ${
+                        isSubmitting ? 'opacity-75 cursor-not-allowed' : ''
+                      }`}
                     >
-                      <Plus size={20} />
-                      Create Event
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          <span>Creating Event...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Plus size={20} />
+                          <span>Create Event</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </form>
@@ -473,7 +533,7 @@ function EventSection() {
       </div>
 
       {/* Updated CSS with scrollbar styling */}
-      <style jsx>{`
+      <style>{`
         @keyframes modal-pop {
           from {
             opacity: 0;
@@ -483,6 +543,25 @@ function EventSection() {
             opacity: 1;
             transform: scale(1);
           }
+        }
+
+        @keyframes success-pop {
+          0% {
+            opacity: 0;
+            transform: scale(0.9);
+          }
+          70% {
+            opacity: 1;
+            transform: scale(1.1);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+
+        .animate-success-pop {
+          animation: success-pop 0.5s ease-out forwards;
         }
 
         /* Hide scrollbar for Chrome, Safari and Opera */
@@ -496,6 +575,21 @@ function EventSection() {
           scrollbar-width: none;  /* Firefox */
         }
       `}</style>
+
+      {/* Optional: Add a loading overlay while submitting */}
+      {isSubmitting && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl transform transition-all duration-300 animate-success-pop">
+            <div className="flex flex-col items-center gap-4">
+              <Loader2 className="w-12 h-12 text-green-500 animate-spin" />
+              <div className="text-center">
+                <h3 className="text-lg font-semibold text-gray-900">Creating Your Event</h3>
+                <p className="text-sm text-gray-600 mt-1">Please wait while we process your submission...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
