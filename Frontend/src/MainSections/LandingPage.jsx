@@ -45,9 +45,12 @@ const LandingPage = () => {
             </main>
           </div>
         </div>
-
+       
         {/* Events Section */}
         <div className="bg-gradient-to-b from-gray-100 to-green-50 py-16">
+          <div className='w-full h-0.5 bg-gray-300 mb-3'>
+
+          </div>
           <div className="max-w-7xl mx-auto px-4">
             {/* Section Header */}
             <div className="text-center mb-12">

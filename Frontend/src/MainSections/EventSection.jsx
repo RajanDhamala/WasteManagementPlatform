@@ -1,9 +1,27 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import EventCard from './EventCard';
 import { Camera, Calendar, MapPin, Users, Plus, Clock, X, Upload, Loader2 } from 'lucide-react';
 import axios from 'axios';
 
+
 function EventSection() {
+
+  const [eventinfo, seteventinfo] = useState([]);
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const response = await axios.get(`${import.meta.env.VITE_BASE_URL}event/loadevents`);
+        console.log(response.data.data);
+        seteventinfo(response.data.data.reverse());
+      } catch (error) {
+        console.error("Error fetching events:", error);
+      }
+    };
+
+    fetchEvents();
+  }, []);
+
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -218,43 +236,19 @@ function EventSection() {
 
         {/* Event Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          <EventCard 
-            title="Ghinaghat Cleanup Drive"
-            date="Sat, Apr 20 • 7:00 AM"
-            location="Ghinaghat, Biratnagar-3"
-            Peoples="45"
-            image={'./ghinaghat.jpg'}
-            status='Ongoing'
-          />
-          <EventCard 
-                title="Keshaliya River Cleanup"
-                date="Sun, Apr 21 • 6:30 AM"
-                location="Keshaliya Bridge, Biratnagar-7"
-                Peoples="32"
-                image={'./ktm.jpg'}
-                status='Completed'
-              
-              />
-              <EventCard 
-                title="Tinpaini Market Cleanup"
-                date="Sat, Apr 27 • 7:30 AM"
-                location="Tinpaini Chowk, Biratnagar-5"
-                Peoples="28"
-                image={'./dirt.webp'}
-                status='Finshed'
-              
-              />
-              <EventCard 
-                title="Bargachhi Park Revival"
-                date="Sun, Apr 28 • 8:00 AM"
-                location="Bargachhi, Biratnagar-4"
-                Peoples="37"
-                status='Ongoing'
-                image={'./defulthu.jpg'}
-              
-              />
-          {/* Add more EventCards here */}
-        </div>
+      {eventinfo.map((event, index) => (
+        <EventCard
+          key={index}
+          title={event.title}
+          date={new Date(event.date).toDateString()} // Formatting date
+          time={event.time}
+          location={event.location}
+          Peoples={event.participantCount}
+          EventImg={event.EventImg} // Directly using what backend provides (1 or 2 images)
+          status={event.EventStatus}
+        />
+      ))}
+    </div>
 
         {/* Create Event Modal */}
         {isCreateModalOpen && (

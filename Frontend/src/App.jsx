@@ -6,6 +6,8 @@ import EventSection from './MainSections/EventSection';
 import { BrowserRouter,Routes,Route,Link } from 'react-router-dom';
 import Navbar from './Navbar';
 import SlugEvent from './MainSections/SlugEvent';
+import ScrappedNews from './MainSections/ScrappedNews';
+
 
 const App = () => {
 
@@ -18,6 +20,7 @@ const App = () => {
           <Route path="/" element={<LandingPage />} />
           <Route path="/events" element={<EventSection />} />
           <Route path="/events/:title" element={<SlugEvent />} />
+          <Route path="/scrapnews" element={<ScrappedNews />} />
         </Routes>
       </BrowserRouter>
    </div>

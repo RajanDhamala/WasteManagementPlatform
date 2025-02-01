@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import EventRouter from './src/Routes/EventRoutes.js';
 import UserRoute from './src/Routes/UserRoutes.js';
+import ScrapRouter from './src/Routes/ScrapperRoutes.js';
 
 const app=express();
 
@@ -22,5 +23,6 @@ app.get('/',(req,res)=>{
 
 app.use('/event',EventRouter);
 app.use('/user',UserRoute);
+app.use('/scrap',ScrapRouter);
 
 export default app;

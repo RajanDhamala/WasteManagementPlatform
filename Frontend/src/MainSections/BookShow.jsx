@@ -13,7 +13,7 @@ const BookShow = () => {
     useEffect(() => {
         const fetchBooks = async () => {
             try {
-                const response = await fetch(`${import.meta.env.VITE_BASE_URL}event/show/35`);
+                const response = await fetch(`${import.meta.env.VITE_BASE_URL}scrap/show/35`);
                 const data = await response.json();
                 setBooks([...data.data]);
             } catch (err) {

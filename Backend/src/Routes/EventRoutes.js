@@ -1,5 +1,5 @@
 import express from 'express'
-import {AddEvent,Scrapping,Showbooks,ScrapNews,EventForm,Eventinfo} from '../Controller/EventController.js'
+import {AddEvent,EventForm,Eventinfo,LoadEvents} from '../Controller/EventController.js'
 import upload from '../Middleware/MulterImg.js'
 
 const EventRouter=express.Router()
@@ -10,15 +10,11 @@ EventRouter.get('/',(req,res)=>{
 
 EventRouter.get('/add',AddEvent)
 
-EventRouter.get('/scrap',Scrapping)
-
-EventRouter.get('/show/:length',Showbooks)
-
-EventRouter.get('/scrapnews',ScrapNews)
-
 EventRouter.post('/eventform',upload.array('images',3),EventForm)
 
 EventRouter.get('/eventinfo/:title',Eventinfo)
+
+EventRouter.get('/loadevents',LoadEvents)
 
 export default EventRouter
 
