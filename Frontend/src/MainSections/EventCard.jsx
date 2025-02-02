@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, MapPin, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import {motion } from 'framer-motion';
 
 const EventCard = ({
   title = 'Beach Cleanup Drive',
