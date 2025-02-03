@@ -2,20 +2,36 @@ import React, { useEffect, useState } from 'react';
 import EventCard from './EventCard';
 import { Camera, Calendar, MapPin, Users, Plus, Clock, X, Upload, Loader2 } from 'lucide-react';
 import axios from 'axios';
+import Alert from '@/AiComponnets/Alert';
 
 
 function EventSection() {
 
   const [eventinfo, seteventinfo] = useState([]);
+  const [alert, setAlert] = useState(null);
 
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const response = await axios.get(`${import.meta.env.VITE_BASE_URL}event/loadevents`);
+        const response = await axios.get(`${import.meta.env.VITE_BASE_URL}event/loadevents`,{withCredentials:true});
         console.log(response.data.data);
-        seteventinfo(response.data.data.reverse());
+        if(response.data.statusCode === 200){
+          seteventinfo(response.data.data.reverse());
+        }else{
+          setAlert({
+            type: 'error',
+            message: response.data.message || 'Failed to fetch events',
+            title: 'Error'
+          });
+        }
+        
       } catch (error) {
         console.error("Error fetching events:", error);
+        setAlert({
+          type: 'error',
+          message: error.response?.data?.message || 'Failed to fetch events',
+          title: 'Error'
+        })
       }
     };
 
@@ -178,6 +194,11 @@ function EventSection() {
 
       if (response.data.statusCode === 200) {
         const successModal = document.createElement('div');
+        setAlert({
+          type: 'success',
+          message: response.data.message ||'Event Created Successfully!',
+          title: 'Success'
+        })
         successModal.innerHTML = `
           <div class="fixed inset-0 flex items-center justify-center z-50">
             <div class="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-xl transform transition-all duration-300 animate-success-pop">
@@ -210,6 +231,11 @@ function EventSection() {
           successModal.remove();
         }, 2000);
       } else {
+        setAlert({
+          type: 'error',
+          message: response.data.message || 'Failed to create event',
+          title: 'Error'
+        })
         throw new Error(response.data.message || 'Failed to create event');
       }
     } catch (error) {
@@ -222,6 +248,16 @@ function EventSection() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 md:mt-18 mt-10">
+         {
+                    alert && (
+                        <Alert 
+                            title={alert.title}
+                            message={alert.message}
+                            type={alert.type}
+                            onClose={() => setAlert('')}
+                        />
+                    )
+                }
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-3xl font-bold text-gray-800">Community Events</h2>
@@ -234,23 +270,21 @@ function EventSection() {
           </button>
         </div>
 
-        {/* Event Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {eventinfo.map((event, index) => (
         <EventCard
           key={index}
           title={event.title}
-          date={new Date(event.date).toDateString()} // Formatting date
-          time={event.time}
+          date={new Date(event.date).toDateString()} 
           location={event.location}
           Peoples={event.participantCount}
-          EventImg={event.EventImg} // Directly using what backend provides (1 or 2 images)
+          EventImg={event.EventImg} 
           status={event.EventStatus}
         />
       ))}
     </div>
 
-        {/* Create Event Modal */}
+       
         {isCreateModalOpen && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div 
@@ -259,7 +293,7 @@ function EventSection() {
                 animation: 'modal-pop 0.3s ease-out'
               }}
             >
-              {/* Sticky header with higher z-index */}
+          
               <div className="sticky top-0 bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-4 rounded-t-2xl z-10">
                 <div className="flex justify-between items-center">
                   <h3 className="text-2xl font-bold">Create New Event</h3>
@@ -428,7 +462,7 @@ function EventSection() {
                         className="hidden"
                         id="event-images"
                         multiple
-                        required
+                        
                       />
                       <label
                         htmlFor="event-images"

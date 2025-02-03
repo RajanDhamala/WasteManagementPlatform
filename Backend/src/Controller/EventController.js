@@ -3,6 +3,8 @@ import asyncHandler from '../Utils/AsyncHandler.js'
 import dotenv from 'dotenv'
 import upload2Cloudinary from '../Utils/CloundinaryImg.js'
 import Event from '../Schema/Event.js'
+import User from '../Schema/User.js'
+import moment from 'moment'
 
 
 dotenv.config()
@@ -80,9 +82,9 @@ const AddEvent = asyncHandler(async (req, res) => {
       const pipeline = [
         {
           $project: {
-            _id: 0,
+            _id: 1,
             EventImg: {
-              $slice: ["$EventImg", 2] // Return up to 2 images (first 2 if available)
+              $slice: ["$EventImg", 2]
             },
             title: 1,
             EventStatus: 1,
@@ -93,7 +95,9 @@ const AddEvent = asyncHandler(async (req, res) => {
           }
         },
         {
-          $sort: { date: -1 } // Sort by latest first
+          $sort: { date: 1 }
+        },{
+          $limit:10
         }
       ];
       
@@ -106,11 +110,83 @@ const AddEvent = asyncHandler(async (req, res) => {
       console.log("Error in Load Events",err);
     }
   })
-  
 
+  const joinEvent = asyncHandler(async (req, res) => {
+    console.log("Join Event Controller");
+    const user = req.user;
+    const { _id } = req.body;
+  
+    if (!user) {
+      return res.send(new ApiResponse(400, "Invalid Credentials", null));
+    }
+  
+    if (!_id) {
+      return res.send(new ApiResponse(400, "Event Id is required", null));
+    }
+  
+    try {
+      const event = await Event.findOne({ title: _id });
+      if (!event) {
+        return res.send(new ApiResponse(404, "Event not found", null));
+      }
+  
+      const existingUser = await User.findOne({ _id: user._id })
+        .select("JoinedEvents _id")
+        .populate({
+          path: "JoinedEvents",
+          select: "date",
+        });
+  
+      console.log("Existing User:", existingUser);
+      if (!existingUser) {
+        return res.send(new ApiResponse(404, "User not found", null));
+      }
+  
+      const isAlreadyJoined = event.Participants.includes(user._id);
+      if (isAlreadyJoined) {
+        return res.send(new ApiResponse(400, "You had already joined this event", null));
+      }
+  
+      event.Participants.push(user._id);
+      existingUser.JoinedEvents.push(event._id);
+  
+      await existingUser.save();
+      await event.save();
+  
+      return res.send(new ApiResponse(200, "Joined Event Successfully", null));
+    } catch (err) {
+      console.log("Error in Join Event", err);
+      return res.send(new ApiResponse(500, "Internal Server Error", null));
+    }
+  });
+
+  
+  const removeParticipation=asyncHandler(async(req,res)=>{
+    
+    const Events=await Event.find({}).select('title Participants date');
+
+    if(!Events){
+      return res.send(new ApiResponse(404,"No Events Found",null));
+    }
+    const user=req.user;
+
+    const existingUser=await User.findOne({_id:user._id}).select('JoinedEvents');
+    existingUser.JoinedEvents=[];
+    await existingUser.save();
+    
+    for(const Event of Events){
+      Event.Participants=[];
+      await Event.save();
+    }
+    return res.send(new ApiResponse(200,"Participation Removed Successfully",null));
+  })
+  
+  
 export {
     AddEvent,
     EventForm,
     Eventinfo,
-    LoadEvents
+    LoadEvents,
+    joinEvent,
+    removeParticipation
 }

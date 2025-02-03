@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Camera, Calendar, MapPin, Users, X, Menu,Home } from 'lucide-react';
+import { Camera, Calendar, MapPin, Users, X, Menu,Home,LogIn, UserPlus } from 'lucide-react';
 import useUserContext from '@/hooks/useUserContext';
+import axios from 'axios';
 
 const Navbar = () => {
     const { isMenuOpen, setIsMenuOpen } = useUserContext();
@@ -10,9 +11,26 @@ const Navbar = () => {
         { name: 'Home', path: '/', icon: Home },
         { name: 'Events', path: '/events', icon: Calendar },
         { name: 'Communities', path: '/communities', icon: Users },
-        { name: 'Impact', path: '/impact', icon: MapPin },
-        { name: 'Gallery', path: '/gallery', icon: Camera },
+        {name: 'Login',path:'/login',icon:LogIn },{
+        name:'Register',path:'/register',icon:UserPlus
+        },{
+        name:'Profile',path:'/profile',icon:Users
+        }
     ];
+
+    const LogoutUser=async()=>{
+        try{
+            const response=await axios.get('http://localhost:8000/user/logout',{withCredentials:true});
+            if(response.data.statusCode=='200'){
+                console.log("Logged Out Successfully");
+            }else{
+                console.log("Error logging out");
+            }
+
+        }catch(err){
+            console.error(err,"Error logging out");
+        }
+    }
 
     useEffect(() => {
         console.log(isMenuOpen);
@@ -30,7 +48,14 @@ const Navbar = () => {
                         <Link className="hover:text-green-200 font-medium" to={"/events"} draggable='false'>Events</Link>
                         <Link className="hover:text-green-200 font-medium" to={"/communities"} draggable='false'>Communities</Link>
                         <Link className="hover:text-green-200 font-medium" to={"/impact"} draggable='false'>Impact</Link>
+                        <Link className="hover:text-green-200 font-medium" to={
+                        '/login'}>Login</Link>
+                        <Link className="hover:text-green-200 font-medium" to={
+                        '/Register'}>Register</Link>
+                        <Link className="hover:text-green-200 font-medium" to={
+                        '/profile'}>Profile</Link>
                         <button className="bg-white text-green-600 px-4 py-2 rounded-lg font-medium hover:bg-green-50">
+                        
                             Login
                         </button>
                     </div>
@@ -82,7 +107,7 @@ const Navbar = () => {
                                 </Link>
                             ))}
 
-                            <button className="w-full text-left px-6 py-4 mt-4 border-t border-gray-100">
+                            <button  onClick={(e)=>LogoutUser()} className="w-full text-left px-6 py-4 mt-4 border-t border-gray-100">
                                 <span className="text-green-600 font-medium">Logout</span>
                             </button>
                         </nav>

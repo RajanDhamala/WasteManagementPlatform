@@ -8,13 +8,12 @@ import ScrapRouter from './src/Routes/ScrapperRoutes.js';
 
 const app=express();
 
-const allowedOrigins = process.env.FRONTEND_URL || "https://waste-management-platform-b5hh.vercel.app";
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended:true}));
 app.use(cookieParser());
 app.use(cors({
-    origin: allowedOrigins,
+    origin:process.env.FRONTEND_URL,
     credentials: true,
 }));
 

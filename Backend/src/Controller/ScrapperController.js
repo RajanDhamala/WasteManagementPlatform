@@ -238,10 +238,25 @@ const ScrapMaster=asyncHandler(async(req,res)=>{
   return res.send(new ApiResponse(200, 'Successfully scraped Master',));
 })
 
+
+const Pagination=asyncHandler(async(req,res)=>{
+  const limits=req.params.limits;
+  const page=req.params.page
+
+  const skip=(page-1)*limits;
+  const totalBooks=await Book.countDocuments({});
+  const books=await Book.find({})
+  .skip(skip).limit(limits).sort({createdAt:-1});
+
+  console.log(books);
+  return res.send(new ApiResponse(200, 'Successfully fetched books', {totalBooks,books}));
+})
+
 export {
     Scrapping,
     Showbooks,
     ScrapNews,
     Crawling,
-    ScrapMaster
+    ScrapMaster,
+    Pagination
 }

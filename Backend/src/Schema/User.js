@@ -34,8 +34,21 @@ const UserSchema=new mongoose.Schema({
     },location:{
         type:String,
        default:''
+    },isVerfied:{
+        type:Boolean,
+        default:false
+    },JoinedEvents:[
+        {
+            type:mongoose.Schema.Types.ObjectId,
+            ref:'Event'
+        }
+    ],PassOtp:{
+        type:String,
+        default:'',
+    },VerificationOtp:{
+        type:String,
+        default:''
     }
-
 },{timestamps:true})
 
 const User= mongoose.model('User',UserSchema)

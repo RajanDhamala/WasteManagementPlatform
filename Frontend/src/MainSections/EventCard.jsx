@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, MapPin, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import {motion } from 'framer-motion';
+import axios from 'axios';
+import Alert from '@/AiComponnets/Alert';
 
 const EventCard = ({
   title = 'Beach Cleanup Drive',
@@ -16,7 +17,23 @@ const EventCard = ({
   const [isHovering, setIsHovering] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
+  const [alert,setAlert]=useState(null);
+
   const encodedTitle = title;
+  const joinEvent=async (_id)=>{
+      try{
+        const response=await axios.post(`${import.meta.env.VITE_BASE_URL}event/joinEvent`,{_id},{withCredentials:true});
+        console.log(response.data);
+        if(response.data.statusCode==200){
+          setAlert({type:'success',message:response.data.message});
+        }else{
+          setAlert({type:'error',message:response.data.message});
+        }
+      }catch(err){
+        console.log("error in joining event",err);
+        setAlert({type:'error',message:'Error in joining event'});
+      }
+  }
 
   useEffect(() => {
     let intervalId;
@@ -169,7 +186,7 @@ const EventCard = ({
 
         <div className="flex items-center gap-4">
           <button
-            onClick={() => alert(`Some update ${title}`)}
+            onClick={() =>joinEvent(title)}
             className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700"
           >
             Join Event

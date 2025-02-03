@@ -52,7 +52,6 @@ const FramerMotion = () => {
         </div>
       </section>
 
-      {/* Tech Stack */}
       <section className="py-20 px-4">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-4xl font-bold text-center mb-16 scroll-animate opacity-0 translate-y-10 transition-all duration-1000">
@@ -60,7 +59,7 @@ const FramerMotion = () => {
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
-              { icon: <Database size={40} />, title: "MongoDB", desc: "Database Design & Optimization" },
+              { icon: <Database size={40} />, title: "MongoDB", desc: "Database " },
               { icon: <Server size={40} />, title: "Express.js", desc: "REST API Development" },
               { icon: <Code size={40} />, title: "React.js", desc: "Frontend Development" },
               { icon: <Globe size={40} />, title: "Node.js", desc: "Backend Architecture" }
@@ -81,7 +80,6 @@ const FramerMotion = () => {
         </div>
       </section>
 
-      {/* Projects */}
       <section className="py-20 px-4 bg-slate-800/50">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-4xl font-bold text-center mb-16 scroll-animate opacity-0 translate-y-10 transition-all duration-1000">
@@ -118,7 +116,6 @@ const FramerMotion = () => {
         </div>
       </section>
 
-      {/* Skills */}
       <section className="py-20 px-4">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-4xl font-bold text-center mb-16 scroll-animate opacity-0 translate-y-10 transition-all duration-1000">
@@ -167,7 +164,6 @@ const FramerMotion = () => {
         </div>
       </section>
 
-      {/* Contact */}
       <section className="py-20 px-4 bg-slate-800/50">
         <div className="max-w-3xl mx-auto text-center scroll-animate opacity-0 translate-y-10 transition-all duration-1000">
           <h2 className="text-4xl font-bold mb-8">Let's Work Together</h2>

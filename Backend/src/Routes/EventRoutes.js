@@ -1,6 +1,7 @@
 import express from 'express'
-import {AddEvent,EventForm,Eventinfo,LoadEvents} from '../Controller/EventController.js'
+import {AddEvent,EventForm,Eventinfo,LoadEvents,joinEvent,removeParticipation} from '../Controller/EventController.js'
 import upload from '../Middleware/MulterImg.js'
+import AuthMiddleware from '../Middleware/JwtMiddleware.js'
 
 const EventRouter=express.Router()
 EventRouter.get('/',(req,res)=>{
@@ -14,7 +15,11 @@ EventRouter.post('/eventform',upload.array('images',3),EventForm)
 
 EventRouter.get('/eventinfo/:title',Eventinfo)
 
-EventRouter.get('/loadevents',LoadEvents)
+EventRouter.get('/loadevents',AuthMiddleware,LoadEvents)
+
+EventRouter.post('/joinEvent',AuthMiddleware,joinEvent)
+
+EventRouter.get('/remove',AuthMiddleware,removeParticipation)
 
 export default EventRouter
 

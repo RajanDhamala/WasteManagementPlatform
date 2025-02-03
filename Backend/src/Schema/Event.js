@@ -8,7 +8,7 @@ const EventSchema=new mongoose.Schema({
         required:true
     },slug:{
         type:String,
-        required:true
+        required:false
     },
     time:{
         type:String,
