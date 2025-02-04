@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Leaf, Mail, Lock, Loader2 } from "lucide-react";
 import Confetti from 'react-confetti';
 import axios from "axios";
 import useUserContext from "../hooks/useUserContext";
-import { useNavigate } from "react-router-dom";
-import Alert from '../AiComponnets/Alert'
+import { useAlert } from "@/UserContext/AlertContext";  // Importing the alert context
 
 const Login = () => {
     const [email, setEmail] = useState("");
@@ -15,7 +14,7 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
     const [showConfetti, setShowConfetti] = useState(false);
 
-    const [alert,setAlert] = useState(null)
+    const { setAlert } = useAlert(); 
 
     const navigate = useNavigate();
 
@@ -41,23 +40,22 @@ const Login = () => {
             console.log(response.data);
             if (response.data.statusCode == '200') {
                 console.log("Login Successful:", response.data);
-                setAlert({
+                setShowConfetti(true);
+                 setAlert({
                     title: "Login Successful",
                     message: "You are now logged in.",
                     type: "success",
-                })
-                setShowConfetti(true);
-                setTimeout(()=>{
+                });
+                setTimeout(() => {
                     setisLoggedIn(true);
-                setCurrentUser(response.data.data);
-                
-                },4000)
-            }else{
+                    setCurrentUser(response.data.data);
+                }, 4000);
+            } else {
                 setAlert({
                     title: "Login Failed",
                     message: response.data.message,
                     type: "error",
-                })
+                });
             }
         } catch (error) {
             console.error(error);
@@ -66,7 +64,7 @@ const Login = () => {
                 title: "Login Failed",
                 message: "Invalid email or password.",
                 type: "error",
-            })
+            });
         } finally {
             setLoading(false);
         }
@@ -86,16 +84,6 @@ const Login = () => {
                 transition={{ duration: 0.5 }}
                 className="max-w-md w-full space-y-8 bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-green-100"
             >
-                {
-                    alert && (
-                        <Alert 
-                            title={alert.title}
-                            message={alert.message}
-                            type={alert.type}
-                            onClose={() => setAlert('')}
-                        />
-                    )
-                }
                 <motion.div 
                     className="text-center"
                     initial={{ scale: 0.8 }}

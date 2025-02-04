@@ -9,10 +9,6 @@ import moment from 'moment'
 
 dotenv.config()
 
-const AddEvent = asyncHandler(async (req, res) => {
-    console.log("some hit this controller")
-    res.send(new ApiResponse(200, 'Event Added Successfully', null))
-})
 
   const EventForm = asyncHandler(async (req, res) => {
     try {
@@ -162,7 +158,7 @@ const AddEvent = asyncHandler(async (req, res) => {
 
   
   const removeParticipation=asyncHandler(async(req,res)=>{
-    
+
     const Events=await Event.find({}).select('title Participants date');
 
     if(!Events){
@@ -180,13 +176,32 @@ const AddEvent = asyncHandler(async (req, res) => {
     }
     return res.send(new ApiResponse(200,"Participation Removed Successfully",null));
   })
-  
+
+
+  const ReportEvent=asyncHandler(async (req,res)=>{
+    const {title,issue}=req.body;
+    if(!title && !issue){
+      return res.send(new ApiResponse(400,"please fill all the issues",null));
+    }
+    console.log("Title:",title,"Issue:",issue);
+    return res.send(new ApiResponse(200,"Issue Reported Successfully",null));
+  })
+
+  const SubscribeEvent=asyncHandler(async(req,res)=>{
+    const {email}=req.body;
+    if(!email){
+      return res.send(new ApiResponse(400,"Email is required",null));
+    }
+    console.log("Email:",email);
+    return res.send(new ApiResponse(200,"Subscribed Successfully",null));
+  })
   
 export {
-    AddEvent,
     EventForm,
     Eventinfo,
     LoadEvents,
     joinEvent,
-    removeParticipation
+    removeParticipation,
+    ReportEvent,
+    SubscribeEvent
 }

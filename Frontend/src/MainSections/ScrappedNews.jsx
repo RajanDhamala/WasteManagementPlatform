@@ -18,7 +18,7 @@ function LoadingSkeleton() {
             <Skeleton className="h-3 w-1/4" />
           </CardContent>
         </Card>
-      ))} 
+      ))}
     </div>
   )
 }
@@ -28,18 +28,23 @@ function ScrappedNews() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(null)
-  const [scrap, setScrap] = useState(false) 
+  const [scrap, setScrap] = useState(false)
 
   const fetchNews = async () => {
     try {
       const isInitialLoad = !scrap
       isInitialLoad ? setLoading(true) : setRefreshing(true)
-      
+
       const response = await axios.get(
         `${import.meta.env.VITE_BASE_URL}scrap/scrapnews`, {
-        params: { scrap: scrap ? true : false } 
+        params: { scrap: scrap ? true : false }
       })
-      setNews(response.data.data.news)
+
+      if (response.data.data.news) {
+        setNews(response.data.data.news)
+      } else {
+        setNews([])
+      }
       setError(null)
     } catch (err) {
       setError('Failed to load news')
@@ -50,7 +55,7 @@ function ScrappedNews() {
   }
 
   useEffect(() => {
-    fetchNews() 
+    fetchNews()
   }, [])
 
   if (loading) return (
@@ -66,6 +71,12 @@ function ScrappedNews() {
     </div>
   )
 
+  if (news.length === 0) return (
+    <div className="flex flex-col items-center justify-center min-h-[300px]">
+      <p className="text-lg text-gray-500">No news available.</p>
+    </div>
+  )
+
   return (
     <div className="container mx-auto p-4 mt-14">
       <style jsx global>{`
@@ -74,14 +85,14 @@ function ScrappedNews() {
           to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
-      
+
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Latest News</h1>
-        
-        <Button 
+
+        <Button
           onClick={() => {
-            setScrap(true) 
-            fetchNews() 
+            setScrap(true)
+            fetchNews()
           }}
           disabled={refreshing}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white 
@@ -105,7 +116,7 @@ function ScrappedNews() {
           >
             <div className="relative h-48 overflow-hidden bg-gray-50">
               <img
-              draggable="false"
+                draggable="false"
                 src={item.Img.replace(/w_175/, 'w_400').replace(/h_98/, 'h_225')}
                 alt={item.title}
                 className="w-full h-full object-cover transition-transform duration-300 ease-in-out group-hover:scale-[1.02]"
@@ -120,8 +131,8 @@ function ScrappedNews() {
               </span>
             </div>
             <CardContent className="p-4">
-              <a 
-              draggable="false"
+              <a
+                draggable="false"
                 href={item.titleLink}
                 target="_blank"
                 rel="noopener noreferrer"

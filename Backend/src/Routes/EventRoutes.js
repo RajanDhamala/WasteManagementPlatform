@@ -1,7 +1,9 @@
 import express from 'express'
-import {AddEvent,EventForm,Eventinfo,LoadEvents,joinEvent,removeParticipation} from '../Controller/EventController.js'
+import {EventForm,Eventinfo,LoadEvents,joinEvent,removeParticipation,ReportEvent,SubscribeEvent} from '../Controller/EventController.js'
 import upload from '../Middleware/MulterImg.js'
 import AuthMiddleware from '../Middleware/JwtMiddleware.js'
+import {rateLimit} from 'express-rate-limit'
+
 
 const EventRouter=express.Router()
 EventRouter.get('/',(req,res)=>{
@@ -9,17 +11,25 @@ EventRouter.get('/',(req,res)=>{
    res.send("Event Route hitted")
 })
 
-EventRouter.get('/add',AddEvent)
+const eventlimit=rateLimit({
+    windowMs: 24 * 60 * 60 * 1000,
+    max: 2,
+    message: "Too many events created from this IP, please try again after an hour"
+})
 
-EventRouter.post('/eventform',upload.array('images',3),EventForm)
+EventRouter.post('/eventform',eventlimit,upload.array('images',3),EventForm)
 
 EventRouter.get('/eventinfo/:title',Eventinfo)
 
-EventRouter.get('/loadevents',AuthMiddleware,LoadEvents)
+EventRouter.get('/loadevents',LoadEvents)
 
-EventRouter.post('/joinEvent',AuthMiddleware,joinEvent)
+EventRouter.post('/joinEvent',rateLimit({windowMs:24 * 60 * 60 * 1000,max:3,message:'cannnot join multiple events'}),AuthMiddleware,joinEvent)
 
 EventRouter.get('/remove',AuthMiddleware,removeParticipation)
+
+EventRouter.post('/report',ReportEvent)
+
+EventRouter.post('/subscribe',SubscribeEvent);
 
 export default EventRouter
 

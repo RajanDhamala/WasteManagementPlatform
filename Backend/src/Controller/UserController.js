@@ -182,18 +182,19 @@ const ForgotPassword=asyncHandler(async(req,res)=>{
   if(!email){
     return res.send(new ApiResponse(400, 'Please fill all the fields', null));
   }
-
   try{
     const existingUser=await User.findOne({email:email}).select('email _id password isVerfied');
-    console.log(existingUser);
+    if(existingUser==null){
+      return res.send(new ApiResponse(400, 'User not found', null));
+    }
     if(!existingUser && !existingUser.isVerfied){
       return res.send(new ApiResponse(400, 'User not found or not verified', null));
     }
     
     const otp=generateOTP();
-    // await sendMail(email,otp);
+    await sendMail(email,otp,'forgotPassword');
     existingUser.PassOtp=otp;
-
+    
     console.log('otp:',otp);
     await existingUser.save();
     return res.send(new ApiResponse(200, 'Password reset OTP sent to ur email', null));
@@ -206,13 +207,12 @@ const ForgotPassword=asyncHandler(async(req,res)=>{
 })
 
 const verifyPasswordOtp=asyncHandler(async(req,res)=>{
-
   const {otp,email}=req.body
   if(!otp || !email){
     return res.send(new ApiResponse(400, 'Please fill all the fields', null));
   }
   try{
-    const existingUser=await User.findOne({email:email}).select('_id PassOtp');
+    const existingUser=await User.findOne({email:email}).select('_id PassOtp RefreshToken');
     if (!existingUser) {
       return res.send(new ApiResponse(400, 'User not found', null));
     }
@@ -222,6 +222,11 @@ const verifyPasswordOtp=asyncHandler(async(req,res)=>{
     }
     existingUser.PassOtp='';
     await existingUser.save();
+    res.cookie('refreshToken', existingUser.RefreshToken, {
+      httpOnly: true,
+      secure: true,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
     return res.send(new ApiResponse(200, 'OTP verified successfully', null));
 
   }catch(err){
@@ -229,6 +234,33 @@ const verifyPasswordOtp=asyncHandler(async(req,res)=>{
     res.send(new ApiResponse(500, 'Internal Server Error', null));
   }
 
+})
+
+
+const ChangePassword=asyncHandler(async(req,res)=>{
+  const user=req.user;
+  const {password}=req.body;
+
+  if(!user){
+    return res.send(new ApiResponse(400, 'Invalid Credentials', null));
+  }
+  if(!password){
+    return res.send(new ApiResponse(400, 'Please fill all the fields', null));
+  }
+ try{
+  const existingUser=await User.findOne({email:user.email}).select('password _id');
+  if(!existingUser){
+    return res.send(new ApiResponse(400, 'User not found', null));
+  }
+  const hashedPassword=await bcrypt.hash(password,10);  
+  existingUser.password=hashedPassword;
+  await existingUser.save();
+  return res.send(new ApiResponse(200, 'Password changed successfully', null));
+
+ }catch(err){
+    console.log(err);
+    res.send(new ApiResponse(500, 'Internal Server Error', null));
+ }
 })
 
 const VerifyUser=asyncHandler(async(req,res)=>{
@@ -246,7 +278,7 @@ const VerifyUser=asyncHandler(async(req,res)=>{
     }
     const Otp=generateOTP();
     console.log('otp for verfication:',Otp);
-    // await sendMail(user.email,Otp);
+    await sendMail(user.email,Otp,'verification');
     existingUser.VerificationOtp=Otp;
     res.send(new ApiResponse(200, 'Verification OTP sent to ur email', null));
 
@@ -283,6 +315,65 @@ if(!otp && !user){
   }
 })
 
+const SeeJoinedEvents=asyncHandler(async(req,res)=>{
+  const user=req.user;
+  if(!user){
+    return res.send(new ApiResponse(400, 'Invalid Credentials', null));
+  }
+  try{
+    const existingUser = await User.findOne({ email: user.email })
+  .select('_id JoinedEvents') 
+  .populate({
+    path: 'JoinedEvents', 
+    select: 'title time date location EventStatus' 
+  });
+
+  if(!existingUser || existingUser.JoinedEvents.length === 0){
+    return res.send(new ApiResponse(400, 'you had not joined any events yet', null));
+  }
+
+  console.log(existingUser);
+  return res.send(new ApiResponse(200, 'Joined Events', existingUser.JoinedEvents));
+
+  }catch(err){
+    console.log(err);
+    res.send(new ApiResponse(500, 'Internal Server Error', null));
+  }
+
+})
+
+const LeaveEvent = asyncHandler(async (req, res) => {
+  const user = req.user;
+  const { eventId } = req.body;
+
+  if (!user || !eventId) {
+    return res.send(new ApiResponse(400, "Invalid Credentials or details", null));
+  }
+  try {
+    const event = await Event.findOne({ title: eventId }).select("Participants");
+
+    if (!event) {
+      return res.send(new ApiResponse(400, "Event not found", null));
+    }
+
+    const userRecord = await User.findOne({ email: user.email }).select("JoinedEvents");
+    if (!userRecord) {
+      return res.send(new ApiResponse(400, "User not found", null));
+    }
+
+    event.Participants = event.Participants.filter((participantId) => participantId.toString() !== user._id.toString());
+
+    userRecord.JoinedEvents = userRecord.JoinedEvents.filter((joinedEventId) => joinedEventId.toString() !== event._id.toString());
+
+    await event.save();
+    await userRecord.save();
+
+    return res.send(new ApiResponse(200, "Left Event Successfully", null));
+  } catch (err) {
+    console.log("Error leaving event:", err);
+    res.send(new ApiResponse(500, "Internal Server Error", null));
+  }
+});
 
 export {
     RegisterUser,
@@ -293,5 +384,7 @@ export {
     ForgotPassword,
     verifyPasswordOtp,
     VerifyUser,
-    VerifyVerficationOtp
+    VerifyVerficationOtp,
+    LeaveEvent,
+    SeeJoinedEvents
 }

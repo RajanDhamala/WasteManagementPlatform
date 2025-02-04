@@ -3,18 +3,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, KeyRound, ArrowLeft, Shield} from 'lucide-react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import Alert from '@/AiComponnets/Alert';
+import { useAlert } from '@/UserContext/AlertContext';
 
 function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [stage, setStage] = useState('email');
-  const [error, setError] = useState('');
   const [verificationStatus, setVerificationStatus] = useState(null);
   const otpInputRefs = useRef([]);
 
   const navigate = useNavigate();
-  const [alert, setAlert] = useState(null);
+  
+  const { setAlert } = useAlert();
 
   const containerVariants = {
     hidden: { opacity: 0, scale: 0.9 },
@@ -55,33 +55,21 @@ function ForgotPassword() {
 
   const handleEmailSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     try {
-      const response = await axios.post(`${import.meta.env.VITE_BASE_URL}user/forgotpassword`, { email });
-      console.log(response.data);
-      
-      if (response.data.success) {
-        setAlert({
-          type: 'success',
-          message: 'OTP sent to your email',
-          title: 'Success'
-        })
+      const { data } = await axios.post(`${import.meta.env.VITE_BASE_URL}user/forgotpassword`, { email });
+  
+      if (data.success) {
+        setAlert({ type: 'success', message: 'OTP sent to your email', title: 'Success' });
         setStage('otp');
       } else {
-        setError(response.data.message || 'Failed to send OTP');
-        setAlert({
-          type: 'error',
-          message: 'Failed to send OTP',
-          title: 'Error'
-        })
+        setAlert({ type: 'error', message: 'Failed to send OTP', title: 'Error' });
       }
     } catch (err) {
-      setAlert({
-        type: 'error',
-        message: 'Failed to send OTP',
-        title: 'Error'
-      })
-      setError(err.response?.data?.message || 'Network error. Please try again.');
+      const message = err.response?.status === 429 
+        ? 'You have exceeded the maximum number of attempts. Please try again later.' 
+        : 'Failed to send OTP';
+  
+      setAlert({ type: 'error', message, title: 'Error' });
     }
   };
 
@@ -93,7 +81,7 @@ function ForgotPassword() {
       const response = await axios.post(`${import.meta.env.VITE_BASE_URL}user/verifyPasswordOtp`, { 
         email, 
         otp: otpCode 
-      });
+      },{ withCredentials: true });
       console.log(response.data);
       
       if (response.data.success) {
@@ -113,7 +101,6 @@ function ForgotPassword() {
           title: 'Error'
         })
         setVerificationStatus('error');
-        setError(response.data.message || 'Invalid OTP. Please try again.');
       }
     } catch (err) {
       setVerificationStatus('error');
@@ -122,22 +109,11 @@ function ForgotPassword() {
         message: 'Failed to verify OTP',
         title: 'Error'
       })
-      setError(err.response?.data?.message || 'Verification failed');
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-green-200 p-4">
-       {
-                    alert && (
-                        <Alert 
-                            title={alert.title}
-                            message={alert.message}
-                            type={alert.type}
-                            onClose={() => setAlert('')}
-                        />
-                    )
-                }
       <motion.div 
         variants={containerVariants}
         initial="hidden"
@@ -161,14 +137,6 @@ function ForgotPassword() {
                 <p className="text-gray-600 mt-2">Enter your email to reset password</p>
               </motion.div>
               
-              {error && (
-                <motion.div 
-                  variants={itemVariants}
-                  className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded-lg text-center"
-                >
-                  {error}
-                </motion.div>
-              )}
               
               <motion.div variants={itemVariants} className="relative">
                 <input 

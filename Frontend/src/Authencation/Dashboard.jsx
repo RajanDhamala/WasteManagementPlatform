@@ -11,7 +11,7 @@ import {
   User, MapPin, Calendar, Settings, Camera, 
   Mail, Activity, ChevronRight, LogOut, Coffee
 } from "lucide-react";
-import Alert from '../AiComponnets/Alert';
+import { useAlert } from "@/UserContext/AlertContext";
 
 
 const Dashboard = () => {
@@ -26,7 +26,7 @@ const Dashboard = () => {
   });
   const [preview, setPreview] = useState(null);
 
-  const [alert,setAlert]=useState(null);
+  const {setAlert}=useAlert();
 
   useEffect(() => {
     fetchUser();
@@ -148,16 +148,6 @@ const Dashboard = () => {
                         <Camera className="text-white opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300" />
                       </div>
                     </motion.div>
-                    {
-                    alert && (
-                        <Alert 
-                            title={alert.title}
-                            message={alert.message}
-                            type={alert.type}
-                            onClose={() => setAlert('')}
-                        />
-                    )
-                }
                   </div>
                   <h2 className="text-xl font-semibold text-gray-900 mb-1">{user?.name}</h2>
                   <p className="text-gray-500 text-sm mb-4">{user?.email}</p>

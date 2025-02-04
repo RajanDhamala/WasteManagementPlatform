@@ -1,10 +1,8 @@
-import React, { useState, useRef } from 'react';
-import EventCard from './MainSections/EventCard';
-import LandingPage from './MainSections/LandingPage';
-import useUserContext from './hooks/useUserContext';
-import EventSection from './MainSections/EventSection';
-import { BrowserRouter,Routes,Route,Link } from 'react-router-dom';
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Navbar from './Navbar';
+import LandingPage from './MainSections/LandingPage';
+import EventSection from './MainSections/EventSection';
 import SlugEvent from './MainSections/SlugEvent';
 import ScrappedNews from './MainSections/ScrappedNews';
 import Login from './Authencation/Login';
@@ -12,13 +10,16 @@ import Register from './Authencation/Register';
 import Dashboard from './Authencation/Dashboard';
 import ForgotPassword from './Authencation/FogotPassword';
 import VerifyUser from './Authencation/VerifyUser';
+import AlertContextProvider from './UserContext/AlertContext'; // Import context provider
+import Alert from './AiComponnets/Alert'; // Import alert component
 
 const App = () => {
   return (
-    <>
-   <div>
+    <AlertContextProvider>
       <BrowserRouter>
         <Navbar />
+        <Alert /> {/* Alert component is now globally accessible */}
+
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/profile" element={<Dashboard />} />
@@ -31,8 +32,7 @@ const App = () => {
           <Route path="/verify" element={<VerifyUser />} />
         </Routes>
       </BrowserRouter>
-   </div>
-    </>
+    </AlertContextProvider>
   );
 };
 

@@ -1,7 +1,8 @@
 import express from 'express';
 import AuthMiddleware from '../Middleware/JwtMiddleware.js';
-import { RegisterUser,LoginUser,LogoutUser,UpdateProfile,UserProfile,ForgotPassword,verifyPasswordOtp,VerifyUser,VerifyVerficationOtp } from '../Controller/UserController.js';
+import { RegisterUser,LoginUser,LogoutUser,UpdateProfile,UserProfile,ForgotPassword,verifyPasswordOtp,VerifyUser,VerifyVerficationOtp,LeaveEvent,SeeJoinedEvents } from '../Controller/UserController.js';
 import UpdatePfp from '../Middleware/ProfilePic.js';
+import {rateLimit} from 'express-rate-limit';
 
 const UserRoute=express.Router();
 
@@ -13,19 +14,24 @@ UserRoute.get('/',(req,res)=>{
 UserRoute.post('/register',RegisterUser)
 
 UserRoute.post('/login',LoginUser)
+// ,rateLimit({ windowMs:60*60*1000,max:4,message:'login req blocked due to multiple req'})
 
 UserRoute.get('/logout',AuthMiddleware,LogoutUser)
 
-UserRoute.post('/UpdateProfile',AuthMiddleware,UpdatePfp.single('ProfileImage'),UpdateProfile)
+UserRoute.post('/UpdateProfile',rateLimit({windowMs:60*60*7000,max:2,message:'cannot update profile such frequently'}),AuthMiddleware,UpdatePfp.single('ProfileImage'),UpdateProfile)
 
 UserRoute.get('/profile',AuthMiddleware,UserProfile);
 
-UserRoute.post('/forgotpassword',ForgotPassword);
+UserRoute.post('/forgotpassword',rateLimit({windowMs:24*60*60*1000,max:100,message:'cannot hit password route frequently'}),ForgotPassword);
 
-UserRoute.post('/verifyPasswordOtp',verifyPasswordOtp);
+UserRoute.post('/verifyPasswordOtp',rateLimit({windowMs:24*60*60*1000,max:6,message:'cannot attempt otp'}),verifyPasswordOtp);
 
-UserRoute.get('/verifyUser',AuthMiddleware,VerifyUser);
+UserRoute.get('/verifyUser',rateLimit({windowMs:24*60*60*1000,max:2,message:'cannot hit password route frequently'}),AuthMiddleware,VerifyUser);
 
-UserRoute.post('/verifyVerificationOtp',AuthMiddleware,VerifyVerficationOtp);
+UserRoute.post('/verifyVerificationOtp',rateLimit({windowMs:24*60*60*1000,max:6,message:'cannot attempt otp'}),AuthMiddleware,VerifyVerficationOtp);
+
+UserRoute.get('/leave',AuthMiddleware,LeaveEvent);
+
+UserRoute.get('/joinedevents',AuthMiddleware,SeeJoinedEvents);
 
 export default UserRoute;

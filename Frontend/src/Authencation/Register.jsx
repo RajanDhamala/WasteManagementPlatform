@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Leaf, Mail, Lock, User, Loader2 } from "lucide-react";
 import Confetti from 'react-confetti';
 import axios from "axios"
-import Alert from "../AiComponnets/Alert";
+import { useAlert } from "@/UserContext/AlertContext";
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -18,8 +18,7 @@ const Register = () => {
   const [showConfetti, setShowConfetti] = useState(false);
   const navigate = useNavigate();
 
-  const [alert, setAlert] = useState(null);
-
+  const {setAlert}=useAlert();
   const handleSubmit = async (e) => {
     e.preventDefault();
  
@@ -97,15 +96,6 @@ const Register = () => {
         transition={{ duration: 0.5 }}
         className="max-w-md w-full space-y-8 bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-green-100"
       >
-        {  alert && (
-                      <Alert 
-                            title={alert.title}
-                            message={alert.message}
-                            type={alert.type}
-                            onClose={() => setAlert('')}
-                        />
-                    )
-                }
         <motion.div
           className="text-center"
           initial={{ scale: 0.8 }}

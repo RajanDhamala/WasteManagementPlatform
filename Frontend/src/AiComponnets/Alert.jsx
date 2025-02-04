@@ -1,16 +1,19 @@
-import { useEffect } from "react"
-import { createPortal } from "react-dom"
-import { motion, AnimatePresence } from "framer-motion"
-import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from "lucide-react"
+import { useEffect } from "react";
+import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from "lucide-react";
+import { useAlert } from "@/UserContext/AlertContext";  // 
 
-const Alert = ({ type = "info", title, message, onClose, autoClose = true, duration = 5000 }) => {
+const Alert = ({ autoClose = true, duration = 4000 }) => {
+  const { alert, setAlert } = useAlert(); 
+
   const alertStyles = {
     success: "bg-green-500 text-white",
     error: "bg-red-500 text-white",
     warning: "bg-yellow-500 text-white",
     info: "bg-blue-500 text-white",
     update: "bg-indigo-500 text-white",
-  }
+  };
 
   const icons = {
     success: <CheckCircle className="w-6 h-6" />,
@@ -18,17 +21,21 @@ const Alert = ({ type = "info", title, message, onClose, autoClose = true, durat
     warning: <AlertTriangle className="w-6 h-6" />,
     info: <Info className="w-6 h-6" />,
     update: <Info className="w-6 h-6" />,
-  }
+  };
 
   useEffect(() => {
-    if (autoClose) {
+    if (autoClose && alert) {
       const timer = setTimeout(() => {
-        onClose()
-      }, duration)
+        setAlert(null);
+      }, duration);
 
-      return () => clearTimeout(timer)
+      return () => clearTimeout(timer);
     }
-  }, [autoClose, duration, onClose])
+  }, [autoClose, duration, alert, setAlert]);
+
+  if (!alert) return null; 
+
+  const { title, message, type } = alert;
 
   const alertContent = (
     <AnimatePresence>
@@ -48,8 +55,8 @@ const Alert = ({ type = "info", title, message, onClose, autoClose = true, durat
             </div>
             <div className="ml-4 flex flex-shrink-0">
               <button
-                className="inline-flex rounded-md bg-transparent text-white hover:text-gray-200 focus:outline-none focus:scale-110  focus:ring-offset-2 "
-                onClick={onClose}
+                className="inline-flex rounded-md bg-transparent text-white hover:text-gray-200 focus:outline-none focus:scale-110  focus:ring-offset-2"
+                onClick={() => setAlert(null)} 
               >
                 <span className="sr-only">Close</span>
                 <X className="h-5 w-5" aria-hidden="true" />
@@ -59,10 +66,9 @@ const Alert = ({ type = "info", title, message, onClose, autoClose = true, durat
         </div>
       </motion.div>
     </AnimatePresence>
-  )
+  );
 
-  return createPortal(alertContent, document.body)
-}
+  return createPortal(alertContent, document.body); 
+};
 
-export default Alert
-
+export default Alert;

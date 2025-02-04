@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Send, ShieldCheck, BadgeCheck, UserCircle } from 'lucide-react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import Alert from '@/AiComponnets/Alert';
+import { useAlert } from '@/UserContext/AlertContext';
 
 function VerifyUser() {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -13,7 +13,7 @@ function VerifyUser() {
   const otpInputRefs = useRef([]);
   const navigate = useNavigate();
 
-  const [alert, setAlert] = useState(null);
+  const {setAlert}=useAlert();
 
   const requestOtp = async () => {
     setError('');
@@ -22,6 +22,11 @@ function VerifyUser() {
       console.log(response.data);
       if (response.data.success) {
         setStage('verification');
+        setAlert({
+          type: 'success',
+          message: response.data.message,
+          title: 'Success'
+        })
       } else {
         setError(response.data.message || 'Failed to request OTP');
         setAlert({
@@ -67,7 +72,7 @@ function VerifyUser() {
         })
         setIsVerified(true);
         setStage('success');
-        setTimeout(() => navigate('/dashboard'), 3000);
+        setTimeout(() => navigate('/profile'), 3000);
       } else {
         setError(response.data.message || 'Invalid verification');
         setAlert({
@@ -88,16 +93,6 @@ function VerifyUser() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center p-4">
-       {
-                    alert && (
-                        <Alert 
-                            title={alert.title}
-                            message={alert.message}
-                            type={alert.type}
-                            onClose={() => setAlert('')}
-                        />
-                    )
-                }
       <motion.div 
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}

@@ -1,13 +1,34 @@
-"use client"
+import { useState } from "react"
 import { Calendar, Search } from "lucide-react"
 import EventCard from "./EventCard"
 import { Link } from "react-router-dom"
 import { motion, useScroll, useTransform } from "framer-motion"
+import { useAlert } from "@/UserContext/AlertContext"
+import axios from 'axios'
 
 const LandingPage = () => {
   const { scrollYProgress } = useScroll()
   const opacity = useTransform(scrollYProgress, [0, 1], [1, 0])
   const scale = useTransform(scrollYProgress, [0, 1], [1, 0.8])
+
+  const [email,setemail]=useState('')
+  const {setAlert}=useAlert()
+
+  const SubscribeDb=async()=>{
+    console.log(email)
+    try{
+      const response=await axios.post(`${import.meta.env.VITE_BASE_URL}event/subscribe`,{email})
+      console.log(response.data)
+      if(response.data.statusCode==200){
+        setAlert({type:'success',message:response.data.message})
+      }else if(response.data.statusCode==400){
+        setAlert({type:'error',message:response.data.message})
+      }
+    }catch(err){
+      console.log(err)
+      setAlert({type:'error',message:'Error in subscribing'})
+    }
+  }
 
   return (
     <>
@@ -211,6 +232,8 @@ const LandingPage = () => {
               <div className="flex gap-2">
                 <input
                   type="email"
+                  value={email}
+                  onChange={(e)=>setemail(e.target.value)}
                   name="email"
                   placeholder="Enter your email"
                   className="px-4 py-2 rounded-lg bg-green-700 text-white placeholder-green-200 flex-grow focus:outline-none"
@@ -219,6 +242,7 @@ const LandingPage = () => {
                   className="bg-green-600 px-4 py-2 rounded-lg hover:bg-green-500"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
+                  onClick={(e)=>SubscribeDb()}
                 >
                   Subscribe
                 </motion.button>

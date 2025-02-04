@@ -5,9 +5,9 @@ import cors from 'cors';
 import EventRouter from './src/Routes/EventRoutes.js';
 import UserRoute from './src/Routes/UserRoutes.js';
 import ScrapRouter from './src/Routes/ScrapperRoutes.js';
+import {rateLimit} from 'express-rate-limit';
 
 const app=express();
-
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended:true}));
@@ -16,6 +16,16 @@ app.use(cors({
     origin:process.env.FRONTEND_URL,
     credentials: true,
 }));
+
+
+    const limiter = rateLimit({
+        windowMs: 15 * 60 * 1000,
+        limit: 100, 
+        standardHeaders: 'draft-8', 
+        legacyHeaders: false,
+        
+    })
+
 
 app.get('/',(req,res)=>{
     console.log('Hello World');
