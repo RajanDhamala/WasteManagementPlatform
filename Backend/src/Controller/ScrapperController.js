@@ -233,8 +233,6 @@ const ScrapMaster=asyncHandler(async(req,res)=>{
 
   console.log(heading);
 
- 
-
   return res.send(new ApiResponse(200, 'Successfully scraped Master',));
 })
 

@@ -6,6 +6,7 @@ import EventRouter from './src/Routes/EventRoutes.js';
 import UserRoute from './src/Routes/UserRoutes.js';
 import ScrapRouter from './src/Routes/ScrapperRoutes.js';
 import {rateLimit} from 'express-rate-limit';
+import useragent from 'express-useragent';
 
 const app=express();
 
@@ -16,6 +17,7 @@ app.use(cors({
     origin:process.env.FRONTEND_URL,
     credentials: true,
 }));
+app.use(useragent.express());
 
 
     const limiter = rateLimit({

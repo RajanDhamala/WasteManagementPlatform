@@ -4,14 +4,14 @@ import dotenv from 'dotenv'
 import upload2Cloudinary from '../Utils/CloundinaryImg.js'
 import Event from '../Schema/Event.js'
 import User from '../Schema/User.js'
-import moment from 'moment'
 
 
 dotenv.config()
 
-
   const EventForm = asyncHandler(async (req, res) => {
     try {
+      const user=req.user;
+      console.log("User:",user);
       const { title, date, time, location, description, requiredVolunteers, problemStatement } = req.body;
       const images = req.files;
       console.log("Title:", title, "Date:", date, "Time:", time, "Location:", location,
@@ -36,7 +36,8 @@ dotenv.config()
         description: description,
         VolunteersReq: requiredVolunteers,
         problemStatement: problemStatement,
-        EventImg: imgPaths
+        EventImg: imgPaths,
+        Host: req.user._id,
       });
   
       await event.save();
@@ -73,7 +74,6 @@ dotenv.config()
   })
 
   const LoadEvents=asyncHandler(async(req,res)=>{
-
     try{
       const pipeline = [
         {
@@ -111,6 +111,7 @@ dotenv.config()
     console.log("Join Event Controller");
     const user = req.user;
     const { _id } = req.body;
+    console.log("User:", user,_id);
   
     if (!user) {
       return res.send(new ApiResponse(400, "Invalid Credentials", null));
@@ -158,14 +159,12 @@ dotenv.config()
 
   
   const removeParticipation=asyncHandler(async(req,res)=>{
-
     const Events=await Event.find({}).select('title Participants date');
 
     if(!Events){
       return res.send(new ApiResponse(404,"No Events Found",null));
     }
     const user=req.user;
-
     const existingUser=await User.findOne({_id:user._id}).select('JoinedEvents');
     existingUser.JoinedEvents=[];
     await existingUser.save();

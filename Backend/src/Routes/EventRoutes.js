@@ -17,13 +17,14 @@ const eventlimit=rateLimit({
     message: "Too many events created from this IP, please try again after an hour"
 })
 
-EventRouter.post('/eventform',eventlimit,upload.array('images',3),EventForm)
+EventRouter.post('/eventform',eventlimit,AuthMiddleware,upload.array('images',3),EventForm)
 
 EventRouter.get('/eventinfo/:title',Eventinfo)
 
 EventRouter.get('/loadevents',LoadEvents)
 
-EventRouter.post('/joinEvent',rateLimit({windowMs:24 * 60 * 60 * 1000,max:3,message:'cannnot join multiple events'}),AuthMiddleware,joinEvent)
+EventRouter.post('/joinEvent',AuthMiddleware,joinEvent)
+// rateLimit({windowMs:24 * 60 * 60 * 1000,max:3,message:'cannnot join multiple events'}),
 
 EventRouter.get('/remove',AuthMiddleware,removeParticipation)
 

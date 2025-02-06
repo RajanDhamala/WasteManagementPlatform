@@ -1,8 +1,9 @@
 import express from 'express';
 import AuthMiddleware from '../Middleware/JwtMiddleware.js';
-import { RegisterUser,LoginUser,LogoutUser,UpdateProfile,UserProfile,ForgotPassword,verifyPasswordOtp,VerifyUser,VerifyVerficationOtp,LeaveEvent,SeeJoinedEvents } from '../Controller/UserController.js';
+import { RegisterUser,LoginUser,LogoutUser,UpdateProfile,UserProfile,ForgotPassword,verifyPasswordOtp,VerifyUser,VerifyVerficationOtp,LeaveEvent,SeeJoinedEvents,browserdetails } from '../Controller/UserController.js';
 import UpdatePfp from '../Middleware/ProfilePic.js';
 import {rateLimit} from 'express-rate-limit';
+import { AiApi } from '../Utils/AiIntegration.js';
 
 const UserRoute=express.Router();
 
@@ -30,8 +31,15 @@ UserRoute.get('/verifyUser',rateLimit({windowMs:24*60*60*1000,max:2,message:'can
 
 UserRoute.post('/verifyVerificationOtp',rateLimit({windowMs:24*60*60*1000,max:6,message:'cannot attempt otp'}),AuthMiddleware,VerifyVerficationOtp);
 
-UserRoute.get('/leave',AuthMiddleware,LeaveEvent);
+UserRoute.post('/leaveEvent',AuthMiddleware,LeaveEvent);
 
 UserRoute.get('/joinedevents',AuthMiddleware,SeeJoinedEvents);
+
+UserRoute.get('/info',browserdetails);
+
+UserRoute.get('/ai',(req,res)=>{
+    AiApi('how ai works')
+    return res.send('AI working')
+})
 
 export default UserRoute;

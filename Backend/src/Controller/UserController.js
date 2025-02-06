@@ -7,7 +7,8 @@ import fs from 'fs';
 import {sendMail,generateOTP} from '../Utils/MailUtil.js'
 
 import upload2Cloudinary from "../Utils/CloundinaryImg.js";
-import e from "cors";
+import Event from '../Schema/Event.js';
+
 
 const RegisterUser = asyncHandler(async (req, res) => {
     const { username, email, password } = req.body;
@@ -317,6 +318,7 @@ if(!otp && !user){
 
 const SeeJoinedEvents=asyncHandler(async(req,res)=>{
   const user=req.user;
+  console.log("hellloo.....")
   if(!user){
     return res.send(new ApiResponse(400, 'Invalid Credentials', null));
   }
@@ -325,7 +327,7 @@ const SeeJoinedEvents=asyncHandler(async(req,res)=>{
   .select('_id JoinedEvents') 
   .populate({
     path: 'JoinedEvents', 
-    select: 'title time date location EventStatus' 
+    select: 'title time date location EventStatus EventImg' 
   });
 
   if(!existingUser || existingUser.JoinedEvents.length === 0){
@@ -346,24 +348,32 @@ const LeaveEvent = asyncHandler(async (req, res) => {
   const user = req.user;
   const { eventId } = req.body;
 
+  console.log("someone is hitting......");
   if (!user || !eventId) {
     return res.send(new ApiResponse(400, "Invalid Credentials or details", null));
   }
   try {
-    const event = await Event.findOne({ title: eventId }).select("Participants");
+    const event = await Event.findOne({title:eventId}).select("Participants _id title");
+    console.log("event:",event);
 
     if (!event) {
       return res.send(new ApiResponse(400, "Event not found", null));
     }
 
     const userRecord = await User.findOne({ email: user.email }).select("JoinedEvents");
+    console.log("userrecord:",userRecord);
+
     if (!userRecord) {
       return res.send(new ApiResponse(400, "User not found", null));
     }
 
-    event.Participants = event.Participants.filter((participantId) => participantId.toString() !== user._id.toString());
+    event.Participants =event.Participants?.filter((ParticipantsId)=>{
+    return ParticipantsId.toString()!==userRecord._id.toString();
+    })
 
-    userRecord.JoinedEvents = userRecord.JoinedEvents.filter((joinedEventId) => joinedEventId.toString() !== event._id.toString());
+    userRecord.JoinedEvents=userRecord.JoinedEvents?.filter((JoinedEventsId)=>{
+      return JoinedEventsId.toString()!==event._id.toString();
+    })
 
     await event.save();
     await userRecord.save();
@@ -374,6 +384,21 @@ const LeaveEvent = asyncHandler(async (req, res) => {
     res.send(new ApiResponse(500, "Internal Server Error", null));
   }
 });
+
+const browserdetails=asyncHandler(async(req,res)=>{
+ console.log(req.headers)
+  console.log(req.ip)
+
+  res.send(new ApiResponse(200, "Browser Details", {ip: req.ip,
+    browser: req.useragent.browser,
+    version: req.useragent.version,
+    os: req.useragent.os,
+    platform: req.useragent.platform,
+    source: req.useragent.source}));
+})
+
+
+
 
 export {
     RegisterUser,
@@ -386,5 +411,7 @@ export {
     VerifyUser,
     VerifyVerficationOtp,
     LeaveEvent,
-    SeeJoinedEvents
+    SeeJoinedEvents,
+    ChangePassword,
+    browserdetails
 }

@@ -9,12 +9,17 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   User, MapPin, Calendar, Settings, Camera, 
-  Mail, Activity, ChevronRight, LogOut, Coffee
+  Mail, Activity, ChevronRight, LogOut, Coffee,Clock
 } from "lucide-react";
 import { useAlert } from "@/UserContext/AlertContext";
 
 
+
 const Dashboard = () => {
+
+
+
+  const[joinedevents,setjoinedevents]=useState([]);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -31,6 +36,24 @@ const Dashboard = () => {
   useEffect(() => {
     fetchUser();
   }, []);
+
+  const showJoinedEvents=async()=>{
+    try{
+      const response=await axios.get(`${import.meta.env.VITE_BASE_URL}user/joinedevents`,{withCredentials:true});
+      console.log(response.data.data);
+      if(response.data.statusCode===200){
+        setjoinedevents(response.data.data);
+      setAlert({type:"success",message:response.data.message,title:'Joined Events' } );
+      }else{
+        setAlert({type:"error",message:response.data.message,title:'Joined Events' } );
+      }
+  
+    }catch(Err){
+      console.log(Err);
+      
+    }
+  }
+  
 
   const fetchUser = async () => {
     try {
@@ -104,6 +127,28 @@ const Dashboard = () => {
     }
   };
 
+  const leaveEvent=async(eventitle)=>{
+    console.log(eventitle);
+    try{
+      const response=await axios.post(`${import.meta.env.VITE_BASE_URL}user/leaveEvent`,{
+        eventId:eventitle,
+      },{withCredentials:true});
+      console.log(response.data);
+      if(response.data.statusCode===200){
+        setAlert({type:"success",message:response.data.message,title:'Leave Event' } );
+       setjoinedevents((prev)=>
+
+      prev.filter((event)=>event.title!==eventitle)
+      
+      );}else{
+          setAlert({type:"error",message:response.data.message,title:'Leave Event' } );
+        }
+    }catch(err){
+      console.log(err);
+      setAlert({type:"error",message:err,title:'Leave Event' } );
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -170,8 +215,8 @@ const Dashboard = () => {
                     <Settings size={18} />
                     <span>Settings</span>
                   </button>
-                  <button className="w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors duration-200">
-                    <Coffee size={18} />
+                  <button onClick={(e)=>showJoinedEvents()} className="w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors duration-200">
+                    <Coffee size={18}  />
                     <span>Activity</span>
                   </button>
                   <button className="w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors duration-200" onClick={(e)=>handelLogout(e)}>
@@ -271,6 +316,75 @@ const Dashboard = () => {
           </motion.div>
         </div>
       </div>
+
+      <section className="px-3">
+      {joinedevents.length > 0 ?(
+        <div className="flex flex-col items-center justify-center gap-6">
+          <h1 className="text-3xl font-semibold text-gray-500">
+            Joined Event Details
+          </h1>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {joinedevents.map((event, index) => (
+              <Card key={index} className="w-full max-w-sm">
+                <CardHeader className="p-0">
+                  <img
+                    src={event.EventImg || '/api/placeholder/300/200'}
+                    alt={event.title}
+                    className="h-52 w-full object-cover rounded-t-lg"
+                  />
+                </CardHeader>
+                <CardContent className="p-4">
+                  <CardTitle className="text-xl mb-4">{event.title}</CardTitle>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Activity size={18} />
+                        <span>Status:</span>
+                      </div>
+                      <span className="font-medium">{event.EventStatus}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Calendar size={18} />
+                        <span>Date:</span>
+                      </div>
+                      <span className="font-medium">{moment(event.date).format("DD MMMM YYYY")}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Clock size={18} />
+                        <span>Time:</span>
+                      </div>
+                      <span className="font-medium">{event.time}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <MapPin size={18} />
+                        <span>Location:</span>
+                      </div>
+                      <span className="font-medium">{event.location}</span>
+                    </div>
+                    <Button 
+                      variant="destructive"
+                      className="w-full mt-4"
+                      onClick={() => leaveEvent(event.title)}
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Leave Event
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      ):(
+        <h1 className="text-center">events are empty</h1>
+      )}
+    </section>
+
+
+
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-[500px]">

@@ -178,7 +178,7 @@ function EventSection() {
 
       const response = await axios.post(
         `${import.meta.env.VITE_BASE_URL}event/eventform`,
-        formDataToSend,
+        formDataToSend,{withCredentials:true},
         {
           headers: {
             'Content-Type': 'multipart/form-data',
