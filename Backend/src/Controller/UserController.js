@@ -50,6 +50,7 @@ const LoginUser = asyncHandler(async (req, res) => {
   console.log(req.body);
     try {
       const { email, password } = req.body;
+      console.log(email,password);
   
       if (!email || !password) {
         return res.send(new ApiResponse(400, 'Please Fill All The Fields', null));

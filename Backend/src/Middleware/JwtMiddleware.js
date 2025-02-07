@@ -24,6 +24,7 @@ const AuthMiddleware = asyncHandler(async (req, res, next) => {
         console.log("Access token expired or invalid:", error.message);
     }
     try {
+        console.log("Refresh token:", refreshToken,accessToken);
         const decodedRefreshToken = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
         
         const user = await User.findOne({ email: decodedRefreshToken.email }).select("name email _id RefreshToken");

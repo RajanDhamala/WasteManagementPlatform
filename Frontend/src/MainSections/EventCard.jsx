@@ -8,23 +8,27 @@ const EventCard = ({
   title = 'Beach Cleanup Drive',
   date = 'Sat, Mar 15 • 9:00 AM',
   location = 'Biratnagar, Nepal',
-  Peoples = '24',
-  EventImg = ['./bg.avif','./ktm.jpg'],
-  status = 'Active'
+  EventImg = ['./bg.avif', './ktm.jpg'],
+  status = 'Active',
+  Peoples: initialPeoples = 24,
 }) => {
   const [iscopied, setIscopied] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isHovering, setIsHovering] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [Peoples, setPeoples] = useState(initialPeoples); // State for people count
 
-  const {setAlert}=useAlert();
+  const { setAlert } = useAlert();
 
   const encodedTitle = title;
+
   const joinEvent = async (_id) => {
     try {
       const response = await axios.post(`${import.meta.env.VITE_BASE_URL}event/joinEvent`, { _id }, { withCredentials: true });
       console.log(response.data);
+
       if (response.data.statusCode === 200) {
+        setPeoples((prev) => prev + 1); // Increment count
         setAlert({ type: 'success', message: response.data.message, title: 'Success' });
       } else {
         setAlert({ type: 'error', message: response.data.message, title: 'Event Error' });
@@ -37,20 +41,18 @@ const EventCard = ({
         setAlert({ type: 'error', message: 'Error in joining event' });
       }
     }
-  }
+  };
 
   useEffect(() => {
     let intervalId;
-    
+
     if (isHovering && EventImg && EventImg.length > 1) {
       intervalId = setInterval(() => {
         setIsTransitioning(true);
         setTimeout(() => {
-          setCurrentImageIndex(prev => 
-            prev === EventImg.length - 1 ? 0 : prev + 1
-          );
+          setCurrentImageIndex((prev) => (prev === EventImg.length - 1 ? 0 : prev + 1));
           setIsTransitioning(false);
-        }, 300); 
+        }, 300);
       }, 4000);
     }
 
@@ -62,16 +64,6 @@ const EventCard = ({
     };
   }, [isHovering, EventImg]);
 
-  useEffect(() => {
-    let interval;
-    if (isHovering && EventImg && EventImg.length > 1) {
-      interval = setInterval(() => {
-        setCurrentImageIndex(prev => (prev + 1) % EventImg.length);
-      }, 2000);
-    }
-    return () => clearInterval(interval);
-  }, [isHovering, EventImg]);
-
   const copyToClipboard = (e) => {
     e.stopPropagation();
     const eventLink = `${window.location.origin}/events/${encodedTitle}`;
@@ -81,9 +73,7 @@ const EventCard = ({
     }).catch(err => console.error("Failed to copy: ", err));
   };
 
-  const currentImage = EventImg && EventImg.length > 0 
-    ? EventImg[currentImageIndex] 
-    : '/images/default-event.jpg';
+  const currentImage = EventImg && EventImg.length > 0 ? EventImg[currentImageIndex] : '/images/default-event.jpg';
 
   const nextImage = () => {
     setIsTransitioning(true);
@@ -96,9 +86,7 @@ const EventCard = ({
   const prevImage = () => {
     setIsTransitioning(true);
     setTimeout(() => {
-      setCurrentImageIndex((prev) => 
-        prev === 0 ? EventImg.length - 1 : prev - 1
-      );
+      setCurrentImageIndex((prev) => (prev === 0 ? EventImg.length - 1 : prev - 1));
       setIsTransitioning(false);
     }, 300);
   };
@@ -190,7 +178,7 @@ const EventCard = ({
 
         <div className="flex items-center gap-4">
           <button
-            onClick={() =>joinEvent(title)}
+            onClick={() => joinEvent(title)}
             className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700"
           >
             Join Event

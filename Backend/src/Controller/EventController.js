@@ -4,6 +4,7 @@ import dotenv from 'dotenv'
 import upload2Cloudinary from '../Utils/CloundinaryImg.js'
 import Event from '../Schema/Event.js'
 import User from '../Schema/User.js'
+import Review from '../Schema/Review.js'
 
 
 dotenv.config()
@@ -59,7 +60,12 @@ dotenv.config()
     
       console.log("Title:",title);  
     try{
-        const response=await Event.findOne({title}).select('title date time location description VolunteersReq problemStatement EventImg');
+        const response=await Event.findOne({title}).select('title date time location description VolunteersReq problemStatement EventImg EventRating Host').populate({
+          path:'EventReview',
+          select:'Review Rating Reviewer',
+
+        });
+        console.log("Response:",response);
 
         if(!response){
             return res.send(new ApiResponse(404,'Event not found',null))
@@ -194,6 +200,102 @@ dotenv.config()
     console.log("Email:",email);
     return res.send(new ApiResponse(200,"Subscribed Successfully",null));
   })
+
+
+  const AddReview = asyncHandler(async (req, res) => {
+    const user = req.user;
+    if (!user) {
+        return res.send(new ApiResponse(400, "Invalid Credentials", null));
+    }
+    const { title, rating, review: ReviewText } = req.body;
+    if (!title || !rating || !ReviewText) {
+        return res.send(new ApiResponse(400, "Please fill all the fields", null));
+    }
+    console.log("Title:", title, "Rating:", rating, "Review:", ReviewText);
+    try {
+        const existingEvent = await Event.findOne({ title: title }).select('EventReview title');
+
+        if (!existingEvent) {
+            return res.send(new ApiResponse(404, "Event not found", null));
+        }
+        const existingReview = await Review.findOne({Event: existingEvent._id,Reviewer: user._id});
+
+        if (existingReview) {
+            return res.send(new ApiResponse(400, "You have already reviewed this event", null));
+        }
+
+        const review = new Review({
+            Reviewer: user._id,
+            Review: ReviewText,
+            Rating: rating,
+            Event: existingEvent._id
+        });
+
+        await review.save();
+
+        existingEvent.EventReview.push(review._id);
+        await existingEvent.save();
+
+        return res.send(new ApiResponse(200, "Review Added Successfully", null));
+    } catch (err) {
+        console.log("Error in Add Review", err);
+        return res.send(new ApiResponse(500, "Internal Server Error", null));
+    }
+});
+
+
+const RemoveReview=asyncHandler(async(req,res)=>{
+const user=req.user;
+const {reviewId}=req.body; 
+
+if(!user){
+  return res.send(new ApiResponse(400,"Invalid Credentials",null));
+}
+
+if(!reviewId){
+  res.send(new ApiResponse(400,"Review Id is required",null));
+}
+try{
+  const review = await Review.findOne({ _id: reviewId }).select('Reviewer');
+  if(!review){
+    return res.send(new ApiResponse(404,"Review not found",null));
+  }
+  if(review.Reviewer.toString()!==user._id){
+  res.send(new ApiResponse(400,"You are not authorized to remove this review",null));
+  console.log("You are not authorized to remove this review");
+  }
+  
+  const Eventss=await Event.findOne({EventReview:reviewId}).select('EventReview');
+
+  if(!Eventss){
+    return res.send(new ApiResponse(404,"Event not found",null));
+  }
+  Eventss.EventReview.pull(reviewId);
+  await Review.deleteOne({ _id: reviewId });
+  await Eventss.save();
+  console.log("Review Removed Successfully");
+  res.send(new ApiResponse(200,"Review Removed Successfully",null));
+
+}catch(err){
+  console.log("Error in Remove Review",err);
+  return res.send(new ApiResponse(500,"Internal Server Error",null));
+}
+})
+
+
+const ClearALlReviews=asyncHandler(async(req,res)=>{
+  const Reviews=await Review.find({}).select('_id');
+  for(const review of Reviews){
+    await Review.deleteOne({_id:review._id});}
+
+    const Events=await Event.find({}).select('EventReview');
+    for(const event of Events){
+      event.EventReview=[];
+      await event.save();
+    } 
+    return res.send(new ApiResponse(200,"All Reviews Removed Successfully",null));
+})
+
   
 export {
     EventForm,
@@ -202,5 +304,8 @@ export {
     joinEvent,
     removeParticipation,
     ReportEvent,
-    SubscribeEvent
+    SubscribeEvent,
+    AddReview,
+    RemoveReview,
+    ClearALlReviews
 }

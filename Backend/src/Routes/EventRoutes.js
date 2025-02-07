@@ -1,9 +1,9 @@
 import express from 'express'
-import {EventForm,Eventinfo,LoadEvents,joinEvent,removeParticipation,ReportEvent,SubscribeEvent} from '../Controller/EventController.js'
+import {EventForm,Eventinfo,LoadEvents,joinEvent,removeParticipation,ReportEvent,SubscribeEvent,AddReview,RemoveReview,ClearALlReviews} from '../Controller/EventController.js'
 import upload from '../Middleware/MulterImg.js'
 import AuthMiddleware from '../Middleware/JwtMiddleware.js'
 import {rateLimit} from 'express-rate-limit'
-
+import ReviewImg from '../Middleware/ReviewMulter.js'
 
 const EventRouter=express.Router()
 EventRouter.get('/',(req,res)=>{
@@ -31,6 +31,12 @@ EventRouter.get('/remove',AuthMiddleware,removeParticipation)
 EventRouter.post('/report',ReportEvent)
 
 EventRouter.post('/subscribe',SubscribeEvent);
+
+EventRouter.post('/addreview', ReviewImg.single('reviewImg'), AuthMiddleware, AddReview);
+
+EventRouter.post('/removereview',AuthMiddleware,RemoveReview)
+
+EventRouter.get('/clearReviews',ClearALlReviews)
 
 export default EventRouter
 

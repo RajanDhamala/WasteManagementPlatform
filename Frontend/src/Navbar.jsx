@@ -10,7 +10,7 @@ const Navbar = () => {
     const menuItems = [
         { name: 'Home', path: '/', icon: Home },
         { name: 'Events', path: '/events', icon: Calendar },
-        { name: 'Communities', path: '/communities', icon: Users },
+        { name: 'Community', path: '/community', icon: Users },
         {name: 'Login',path:'/login',icon:LogIn },{
         name:'Register',path:'/register',icon:UserPlus
         },{
@@ -46,7 +46,7 @@ const Navbar = () => {
                     <div className="hidden md:flex items-center space-x-8">
                         <Link className="hover:text-green-200 font-medium" to={'/'} draggable='false'>Home</Link>
                         <Link className="hover:text-green-200 font-medium" to={"/events"} draggable='false'>Events</Link>
-                        <Link className="hover:text-green-200 font-medium" to={"/communities"} draggable='false'>Communities</Link>
+                        <Link className="hover:text-green-200 font-medium" to={"/community"} draggable='false'>Communities</Link>
                         <Link className="hover:text-green-200 font-medium" to={"/impact"} draggable='false'>Impact</Link>
                         <Link className="hover:text-green-200 font-medium" to={
                         '/login'}>Login</Link>
