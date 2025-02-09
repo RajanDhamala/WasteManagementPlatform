@@ -60,11 +60,20 @@ dotenv.config()
     
       console.log("Title:",title);  
     try{
-        const response=await Event.findOne({title}).select('title date time location description VolunteersReq problemStatement EventImg EventRating Host').populate({
-          path:'EventReview',
-          select:'Review Rating Reviewer',
-
-        });
+      const response = await Event.findOne({ title })
+      .select("title date time location description VolunteersReq problemStatement EventImg EventRating Host")
+      .populate({
+        path: "EventReview",
+        select: "Review Rating Reviewer createdAt",
+        populate: {
+          path: "Reviewer",
+          select: "name ProfileImage",
+        },
+      })
+      .populate({
+        path: "Host",
+        select: "name ProfileImage",
+      });
         console.log("Response:",response);
 
         if(!response){
@@ -246,7 +255,7 @@ dotenv.config()
 
 const RemoveReview=asyncHandler(async(req,res)=>{
 const user=req.user;
-const {reviewId}=req.body; 
+const {reviewId}=req.params
 
 if(!user){
   return res.send(new ApiResponse(400,"Invalid Credentials",null));

@@ -250,11 +250,28 @@ const Pagination=asyncHandler(async(req,res)=>{
   return res.send(new ApiResponse(200, 'Successfully fetched books', {totalBooks,books}));
 })
 
+
+const ScrapChesscom=asyncHandler(async(req,res)=>{
+  console.log("scrapping chesscom boss")
+  try{
+      const reponsehai=await axios.get('https://www.chess.com/events/2025-freestyle-chess-grand-slam-weissenhaus-ko/01-01/Sindarov_Javokhir-Nakamura_Hikaru')
+      const html=reponsehai.data;
+      const $=cheerio.load(html);
+      console.log(html);
+
+      return res.send(new ApiResponse(200, 'Successfully fetched chesscom',html));
+
+  }catch(err){  
+    console.log(err)
+  }
+})
+
 export {
     Scrapping,
     Showbooks,
     ScrapNews,
     Crawling,
     ScrapMaster,
-    Pagination
+    Pagination,
+    ScrapChesscom
 }

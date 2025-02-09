@@ -34,7 +34,7 @@ EventRouter.post('/subscribe',SubscribeEvent);
 
 EventRouter.post('/addreview', ReviewImg.single('reviewImg'), AuthMiddleware, AddReview);
 
-EventRouter.post('/removereview',AuthMiddleware,RemoveReview)
+EventRouter.get('/removereview/:reviewId',AuthMiddleware,RemoveReview)
 
 EventRouter.get('/clearReviews',ClearALlReviews)
 

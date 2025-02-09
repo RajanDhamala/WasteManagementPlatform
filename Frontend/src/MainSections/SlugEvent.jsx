@@ -4,6 +4,8 @@ import { Calendar, MapPin, Users, Clock, ChevronLeft, ChevronRight, LinkIcon, Ar
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAlert } from '@/UserContext/AlertContext';
+import ReviewDine from '../BreakingHai/ReviewDine';
+
 
 function SlugEvent() {
   const { title } = useParams();
@@ -34,6 +36,7 @@ function SlugEvent() {
       try {
         const response = await axios.get(`${import.meta.env.VITE_BASE_URL}event/eventinfo/${decodedTitle}`);
         setEvent(response.data.data);
+        console.log("Event:",response.data.data);
       } catch (error) {
         setError('Failed to load event details');
         console.error('Error fetching event:', error);
@@ -88,6 +91,7 @@ function SlugEvent() {
       });
     }
   };
+
 
   if (loading) {
     return (
@@ -188,6 +192,10 @@ function SlugEvent() {
                   <Users className="w-5 h-5 text-gray-600" />
                   <span>{event.VolunteersReq} volunteers needed</span>
                 </div>
+                <div className="flex items-center gap-3 text-gray-600">
+                  <Users className="w-5 h-5 text-gray-600" />
+                  <span>HostedBy: {event?.Host?.[0]?.name || 'Anonymous'}</span>
+                </div>
               </div>
             </div>
 
@@ -224,6 +232,7 @@ function SlugEvent() {
           </div>
         </div>
       </div>
+
 
       {showShareToast && (
         <div className="fixed bottom-4 right-4 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg">
@@ -307,6 +316,11 @@ function SlugEvent() {
           </motion.div>
         )}
       </AnimatePresence>
+      {
+  event.EventReview.length > 0 ? (
+    <ReviewDine event={event} />
+  ) : null
+}
     </div>
   );
 }
