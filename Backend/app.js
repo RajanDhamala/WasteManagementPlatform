@@ -9,6 +9,7 @@ import {rateLimit} from 'express-rate-limit';
 import useragent from 'express-useragent';
 import dotenv from 'dotenv';
 import ReviewRouter from './src/Routes/ReviewRotes.js';
+import StreamRoutes from './src/Routes/StreamRoutes.js';
 
 dotenv.config();
 
@@ -42,6 +43,7 @@ app.use('/event',EventRouter);
 app.use('/user',UserRoute);
 app.use('/scrap',ScrapRouter);
 app.use('/review',ReviewRouter);
+app.use('/stream',StreamRoutes);
 
 
 export default app;
