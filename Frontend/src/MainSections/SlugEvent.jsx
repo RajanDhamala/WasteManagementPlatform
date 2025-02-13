@@ -316,11 +316,10 @@ function SlugEvent() {
           </motion.div>
         )}
       </AnimatePresence>
-      {
-  event.EventReview.length > 0 ? (
+      
     <ReviewDine event={event} />
-  ) : null
-}
+ 
+
     </div>
   );
 }

@@ -127,6 +127,7 @@ const Register = () => {
             <div className="relative">
               <User className="absolute left-3 top-3.5 h-5 w-5 text-[#8FBC8F]" />
               <input
+                autoComplete="username"
                 type="text"
                 placeholder="Username"
                 value={formData.username}
@@ -142,6 +143,7 @@ const Register = () => {
               <Mail className="absolute left-3 top-3.5 h-5 w-5 text-[#8FBC8F]" />
               <input
                 type="email"
+                autoComplete="email"
                 placeholder="Email address"
                 value={formData.email}
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
@@ -155,6 +157,7 @@ const Register = () => {
             <div className="relative">
               <Lock className="absolute left-3 top-3.5 h-5 w-5 text-[#8FBC8F]" />
               <input
+              autoComplete="new-password"
                 type="password"
                 placeholder="Password"
                 value={formData.password}
@@ -169,6 +172,7 @@ const Register = () => {
             <div className="relative">
               <Lock className="absolute left-3 top-3.5 h-5 w-5 text-[#8FBC8F]" />
               <input
+              autoComplete="new-password"
                 type="password"
                 placeholder="Confirm password"
                 value={formData.confirmPassword}

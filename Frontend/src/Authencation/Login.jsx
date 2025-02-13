@@ -117,6 +117,7 @@ const Login = () => {
                             <div className="relative">
                                 <Mail className="absolute left-3 top-3.5 h-5 w-5 text-[#8FBC8F]" />
                                 <input
+                                autoComplete="username"
                                     id="email"
                                     type="email"
                                     value={email}
@@ -135,6 +136,7 @@ const Login = () => {
                             <div className="relative">
                                 <Lock className="absolute left-3 top-3.5 h-5 w-5 text-[#8FBC8F]" />
                                 <input
+                                autoComplete="current-password"
                                     id="password"
                                     type="password"
                                     value={password}

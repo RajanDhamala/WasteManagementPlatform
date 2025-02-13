@@ -31,6 +31,15 @@ function ReviewDine({ event }) {
           { withCredentials: true }
         );
         console.log('Review:', response.data);
+
+        if (response.data.statusCode === 200) {
+          setReview('');
+          setShowReviewModal(false);
+          setAlert({
+            type: 'success',
+            message: 'Review added successfully',
+          });
+        }
   
     
       } catch (err) {

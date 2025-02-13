@@ -48,6 +48,12 @@ const UserSchema=new mongoose.Schema({
     },VerificationOtp:{
         type:String,
         default:''
+    },Points:{
+        type:Number,
+        default:0
+    },isBlocked:{
+        type:Boolean,
+        default:false
     }
 },{timestamps:true})
 
