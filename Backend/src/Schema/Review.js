@@ -27,7 +27,7 @@ const EventSchema=new mongoose.Schema({
         ref:'User'
     }]
     
-},{withTimestamps:true})
+},{timestamps:true})
 
 const Review= mongoose.model('Review',EventSchema)
 export default Review

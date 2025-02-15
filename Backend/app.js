@@ -11,29 +11,17 @@ import dotenv from 'dotenv';
 import ReviewRouter from './src/Routes/ReviewRotes.js';
 import StreamRoutes from './src/Routes/StreamRoutes.js';
 
+
 dotenv.config();
 
 const app=express();
-
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended:true}));
 app.use(cookieParser());
-app.use(cors({
-    origin:process.env.FRONTEND_URL,
-    credentials: true,
-}));
+app.use(cors({origin:process.env.FRONTEND_URL,credentials: true,}));
 app.use(useragent.express());
 
-
-    const limiter = rateLimit({
-        windowMs: 15 * 60 * 1000,
-        limit: 100, 
-        standardHeaders: 'draft-8', 
-        legacyHeaders: false,
-        
-    })
-
-
+  
 app.get('/',(req,res)=>{
     console.log('Hello World');
     return res.send('Res from express server')
