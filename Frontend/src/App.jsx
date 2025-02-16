@@ -16,11 +16,6 @@ import {
   ComminitySection
 } from './LazyLoading/Lazyloading';
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
-// Create a query client instance
-const queryClient = new QueryClient();
-
 const Loader = () => {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-white">
@@ -32,8 +27,6 @@ const Loader = () => {
 const App = () => {
   return (
     <AlertContextProvider>
-      {/* Wrap with QueryClientProvider to enable caching for all components */}
-      <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <Navbar />
           <Alert /> 
@@ -52,7 +45,6 @@ const App = () => {
             </Routes>
           </Suspense>
         </BrowserRouter>
-      </QueryClientProvider>
     </AlertContextProvider>
   );
 };

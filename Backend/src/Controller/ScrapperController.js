@@ -138,7 +138,6 @@ const ScrapNews = asyncHandler(async (req, res) => {
       
       cache[url] = response.data;
       saveCache(cache);
-
       return res.send(new ApiResponse(200, 'Successfully scraped website', {}));
     } catch (error) {
       console.error('Error scraping the website:', error);
@@ -187,7 +186,7 @@ const ScrapNews = asyncHandler(async (req, res) => {
 const Crawling = asyncHandler(async (req, res) => {
   console.log("Crawling booss rn...");
 
-  const browser=await puppeteer.launch({headless:true});
+  const browser=await puppeteer.launch({headless:false});
   const tab=await browser.newPage();
 
   await tab.goto('https://weather-app-react-two-theta.vercel.app/',{waitUntil:'networkidle2'});
@@ -209,8 +208,6 @@ const Crawling = asyncHandler(async (req, res) => {
   // fs.writeFileSync('weather.png',img);
   await tab.waitForNetworkIdle()
   console.log('Page loaded');
-  const divs= tab.locator('//*[@id="root"]/div[3]/div/div').allTextContent();
-  console.log(divs)
 
   return res.send(new ApiResponse(200, 'Successfully crawled website',));
   

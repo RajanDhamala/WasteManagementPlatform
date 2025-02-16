@@ -1,9 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAlert } from '@/UserContext/AlertContext';
-import { Check, X } from 'lucide-react';
+import { Check, X,Star } from 'lucide-react';
 import axios from 'axios';
 import ThreeDotMenu from '@/AiComponnets/ThreeDots';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+
+
+
 
 const ReviewDine = ({ event }) => {
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -12,6 +19,7 @@ const ReviewDine = ({ event }) => {
   const [reviews, setReviews] = useState([]);
   const [editingReviewId, setEditingReviewId] = useState(null);
   const [editingText, setEditingText] = useState('');
+  const [hoverRating, setHoverRating] = React.useState(0);
 
   const { setAlert } = useAlert();
 
@@ -33,6 +41,7 @@ const ReviewDine = ({ event }) => {
         },
         { withCredentials: true }
       );
+      console.log(response.data)
 
       if (response.data.statusCode === 200) {
         setReviewText('');
@@ -41,23 +50,29 @@ const ReviewDine = ({ event }) => {
           type: 'success',
           message: 'Review added successfully',
         });
-        if (response.data.review) {
-          setReviews([...reviews, response.data.review]);
-        }
+      
+      }else{
+        setAlert({
+          type: 'error',
+          message: response.data.message || 'Failed to add review',})
+          setShowReviewModal(false);
       }
     } catch (err) {
       setAlert({
         type: 'error',
         message: err.response?.data?.message || 'Failed to add review',
       });
+      setShowReviewModal(false);
     }
   };
 
+ 
   const handleReviewDelete = async (reviewId) => {
     try {
       const response = await axios.get(
         `${import.meta.env.VITE_BASE_URL}event/removereview/${reviewId}`,
         { withCredentials: true }
+       
       );
 
       if (response.data.statusCode === 200) {
@@ -83,15 +98,13 @@ const ReviewDine = ({ event }) => {
   };
 
   const handleUpdateReview = async (reviewId) => {
+    console.log(reviewId,editingText)
     try {
       const response = await axios.put(
-        `${import.meta.env.VITE_BASE_URL}event/updatereview/${reviewId}`,
-        {
-          review: editingText,
-        },
+        `${import.meta.env.VITE_BASE_URL}review/edit/${reviewId}/${editingText}`,{},
         { withCredentials: true }
       );
-
+      console.log(response.data.data)
       if (response.data.statusCode === 200) {
         setReviews((prevReviews) =>
           prevReviews.map((rev) =>
@@ -101,7 +114,7 @@ const ReviewDine = ({ event }) => {
         setEditingReviewId(null);
         setEditingText('');
         setAlert({
-          type: 'success',
+          type: 'info',
           message: 'Review updated successfully',
         });
       }
@@ -109,6 +122,37 @@ const ReviewDine = ({ event }) => {
       setAlert({
         type: 'error',
         message: err.response?.data?.message || 'Failed to update review',
+      });
+    }
+  };
+
+
+  const ReportReview = async (reviewId) => {
+    try {
+      const response = await axios.delete(
+        `${import.meta.env.VITE_BASE_URL}review/report/${reviewId}`,
+        { withCredentials: true }
+      );
+  
+      if (response.data.statusCode === 200) {
+        setAlert({
+          type: 'update',
+          message: response.data.message,
+          title: 'Event Reported',
+        });
+      } else {
+        setAlert({
+          type: 'error',
+          message: response.data.message || 'Failed to report the review.',
+          title: 'Report Error',
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      setAlert({
+        type: 'error',
+        message: error.response?.data?.message || 'Something went wrong.',
+        title: 'Error',
       });
     }
   };
@@ -166,6 +210,7 @@ const ReviewDine = ({ event }) => {
                 <ThreeDotMenu
                   onDelete={() => handleReviewDelete(review._id)}
                   onEdit={() => handleEditReview(review._id, review.Review)}
+                  onReport={()=>ReportReview(review._id)}
                 />
               </div>
 
@@ -206,72 +251,92 @@ const ReviewDine = ({ event }) => {
       </div>
 
       <AnimatePresence>
-        {showReviewModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          >
+          {showReviewModal && (
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-xl p-6 max-w-md w-full shadow-xl"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             >
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Write a Review</h3>
-              <form onSubmit={handleReviewSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Rating</label>
-                  <div className="flex gap-2">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <button
-                        key={star}
-                        type="button"
-                        onClick={() => setRating(star)}
-                        className={`text-2xl ${
-                          star <= rating ? 'text-yellow-400' : 'text-gray-300'
-                        } hover:scale-110 transition-transform`}
-                      >
-                        ★
-                      </button>
-                    ))}
-                  </div>
-                </div>
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                className="w-full max-w-lg"
+              >
+                <Card className="shadow-xl border-0">
+                  <CardHeader className="relative pb-2">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="absolute right-4 top-4"
+                      onClick={() => setShowReviewModal(false)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                    <CardTitle className="text-2xl font-bold">Write a Review</CardTitle>
+                  </CardHeader>
+                  
+                  <CardContent>
+                    <form onSubmit={handleReviewSubmit} className="space-y-6">
+                      <div className="space-y-2">
+                        <Label className="text-base">How would you rate your experience?</Label>
+                        <div className="flex gap-1">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                              key={star}
+                              type="button"
+                              onMouseEnter={() => setHoverRating(star)}
+                              onMouseLeave={() => setHoverRating(0)}
+                              onClick={() => setRating(star)}
+                              className="p-1 transition-all hover:scale-110"
+                            >
+                              <Star
+                                className={`w-8 h-8 transition-colors ${
+                                  star <= (hoverRating || rating)
+                                    ? 'fill-yellow-400 text-yellow-400'
+                                    : 'text-gray-300'
+                                }`}
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Your Review
-                  </label>
-                  <textarea
-                    value={reviewText}
-                    onChange={(e) => setReviewText(e.target.value)}
-                    className="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 min-h-[100px] p-2"
-                    placeholder="Share your experience..."
-                    required
-                  />
-                </div>
+                      <div className="space-y-2">
+                        <Label className="text-base">Share your thoughts</Label>
+                        <Textarea
+                          value={reviewText}
+                          onChange={(e) => setReviewText(e.target.value)}
+                          placeholder="Tell us what you loved or what we could improve..."
+                          className="min-h-[120px] resize-none"
+                          required
+                        />
+                      </div>
 
-                <div className="flex justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowReviewModal(false)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    Submit Review
-                  </button>
-                </div>
-              </form>
+                      <div className="flex justify-end gap-3 pt-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setShowReviewModal(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={!rating || !reviewText.trim()}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          Submit Review
+                        </Button>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>
     </section>
   );
 };

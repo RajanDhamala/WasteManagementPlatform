@@ -12,6 +12,8 @@ const EditUserReview=asyncHandler(async(req,res)=>{
     const {reviewId,review}=req.params;
     const user=req.user;
 
+    console.log(reviewId,review)
+
     if (!reviewId || !review) {
         throw new ApiError(400, 'Review ID and review text are required');
     }
@@ -32,12 +34,11 @@ res.send(new ApiResponse(200, 'Review updated successfully', existingReview));
 
 const ReportReview=asyncHandler(async(req,res)=>{
     const {reviewId}=req.params;
-    const user=req.user;
 
     if (!reviewId) {
         throw new ApiError(400, 'Review ID and issue is required');
     }
-    console.log(reviewId)
+    console.log(reviewId,"reported by:")
     res.send(new ApiResponse(200, 'Review reported successfully', reviewId));
 })
 
