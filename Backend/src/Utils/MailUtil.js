@@ -6,6 +6,11 @@ dotenv.config();
 const sendMail = async (recipientEmail, otp, type) => {
   const Transponder = nodemailer.createTransport({
     service: "gmail",
+    headers:{
+      "Access-Control-Allow-Origin":"*",
+      "Access-Control-Allow-Methods":"GET, POST, PUT, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers":"Origin, X-Requested-With, Content-Type, Accept"
+    },
     auth: {
       user: process.env.EMAIL,
       pass: process.env.PASSWORD

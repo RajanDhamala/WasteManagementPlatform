@@ -10,7 +10,6 @@ ReviewRouter.get('/',(req,res)=>{
 
 ReviewRouter.put('/edit/:reviewId/:review',AuthMiddleware,EditUserReview);
 
-ReviewRouter.delete('/report/:reviewId',ReportReview);
-
+ReviewRouter.get('/report/:reviewId',ReportReview);
 
 export default ReviewRouter;

@@ -1,8 +1,11 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AlertContextProvider from './UserContext/AlertContext';
-import Alert from './AiComponnets/Alert'; 
+import Alert from './AiComponnets/Alert';
 import Navbar from './Navbar';
+import useUserContext from './hooks/useUserContext';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import {
   LandingPage,
   EventSection,
@@ -13,8 +16,17 @@ import {
   VerifyUser,
   ForgotPassword,
   ScrappedNews,
-  ComminitySection
 } from './LazyLoading/Lazyloading';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5,
+      cacheTime: 1000 * 60 * 10, 
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const Loader = () => {
   return (
@@ -25,11 +37,17 @@ const Loader = () => {
 };
 
 const App = () => {
+  const { CurrentUser } = useUserContext();
+
+  console.log(CurrentUser);
+
   return (
-    <AlertContextProvider>
+    <QueryClientProvider client={queryClient}>
+      <ReactQueryDevtools initialIsOpen={false} />
+      <AlertContextProvider>
         <BrowserRouter>
           <Navbar />
-          <Alert /> 
+          <Alert />
           <Suspense fallback={<Loader />}>
             <Routes>
               <Route path="/" element={<LandingPage />} />
@@ -41,11 +59,11 @@ const App = () => {
               <Route path="/scrapnews" element={<ScrappedNews />} />
               <Route path="/forgot" element={<ForgotPassword />} />
               <Route path="/verify" element={<VerifyUser />} />
-              <Route path="/Community" element={<ComminitySection />} />
             </Routes>
           </Suspense>
         </BrowserRouter>
-    </AlertContextProvider>
+      </AlertContextProvider>
+    </QueryClientProvider>
   );
 };
 

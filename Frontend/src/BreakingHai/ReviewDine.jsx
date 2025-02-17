@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import useUserContext from '@/hooks/useUserContext';
 
 
 
@@ -20,6 +21,7 @@ const ReviewDine = ({ event }) => {
   const [editingReviewId, setEditingReviewId] = useState(null);
   const [editingText, setEditingText] = useState('');
   const [hoverRating, setHoverRating] = React.useState(0);
+  const {CurrentUser}=useUserContext();
 
   const { setAlert } = useAlert();
 
@@ -69,7 +71,7 @@ const ReviewDine = ({ event }) => {
  
   const handleReviewDelete = async (reviewId) => {
     try {
-      const response = await axios.get(
+      const response = await axios.delete(
         `${import.meta.env.VITE_BASE_URL}event/removereview/${reviewId}`,
         { withCredentials: true }
        
@@ -129,7 +131,8 @@ const ReviewDine = ({ event }) => {
 
   const ReportReview = async (reviewId) => {
     try {
-      const response = await axios.delete(
+      console.log(CurrentUser)
+      const response = await axios.get(
         `${import.meta.env.VITE_BASE_URL}review/report/${reviewId}`,
         { withCredentials: true }
       );

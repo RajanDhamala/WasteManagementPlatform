@@ -45,7 +45,6 @@ const RegisterUser = asyncHandler(async (req, res) => {
     }
 });
 
-
 const LoginUser = asyncHandler(async (req, res) => {
   console.log(req.body);
     try {

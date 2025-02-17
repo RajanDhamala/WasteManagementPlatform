@@ -1,25 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, Users, Clock, ChevronLeft, ChevronRight, LinkIcon, ArrowLeft, AlertTriangle } from 'lucide-react';
-import axios from 'axios';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery, useQueryClient } from '@tanstack/react-query'; // Import useQuery and useQueryClient
 import { useAlert } from '@/UserContext/AlertContext';
 import ReviewDine from '../BreakingHai/ReviewDine';
+import axios from 'axios';
+import { AnimatePresence, motion } from 'framer-motion';
 
+// Function to fetch event details
+const fetchEventDetails = async (decodedTitle) => {
+  const response = await axios.get(`${import.meta.env.VITE_BASE_URL}event/eventinfo/${decodedTitle}`);
+  return response.data.data;
+};
 
 function SlugEvent() {
   const { title } = useParams();
   const navigate = useNavigate();
   const decodedTitle = decodeURIComponent(title);
-  const [event, setEvent] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [error, setError] = useState(null);
   const [showShareToast, setShowShareToast] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [otherReason, setOtherReason] = useState('');
   const { setAlert } = useAlert();
+  const queryClient = useQueryClient(); // Using QueryClient for caching and prefetching
 
   const reportReasons = [
     "Fraudulent event",
@@ -31,29 +35,26 @@ function SlugEvent() {
     "Other"
   ];
 
-  useEffect(() => {
-    const fetchEventDetails = async () => {
-      try {
-        const response = await axios.get(`${import.meta.env.VITE_BASE_URL}event/eventinfo/${decodedTitle}`);
-        setEvent(response.data.data);
-        console.log("Event:",response.data.data);
-      } catch (error) {
-        setError('Failed to load event details');
-        console.error('Error fetching event:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchEventDetails();
-  }, [decodedTitle]);
+  // Use TanStack Query to fetch event data
+  const { data: event, error, isLoading } = useQuery({
+    queryKey: ['event', decodedTitle],  // Query key as an object key-value pair
+    queryFn: () => fetchEventDetails(decodedTitle),  // Query function
+    enabled: !!decodedTitle,  // Only run if decodedTitle is present
+    onSuccess: (data) => {
+      queryClient.setQueryData(['event', decodedTitle], data);  // Store the event data in cache
+    },
+  });
 
   const nextImage = () => {
-    setCurrentImageIndex((prev) => (prev + 1) % event.EventImg.length);
+    if (event && event.EventImg) {
+      setCurrentImageIndex((prev) => (prev + 1) % event.EventImg.length);
+    }
   };
 
   const prevImage = () => {
-    setCurrentImageIndex((prev) => (prev - 1 + event.EventImg.length) % event.EventImg.length);
+    if (event && event.EventImg) {
+      setCurrentImageIndex((prev) => (prev - 1 + event.EventImg.length) % event.EventImg.length);
+    }
   };
 
   const copyToClipboard = () => {
@@ -67,7 +68,7 @@ function SlugEvent() {
     try {
       const finalReason = reportReason === 'Other' ? otherReason : reportReason;
       const response = await axios.post(
-        `${import.meta.env.VITE_BASE_URL}event/report`, 
+        `${import.meta.env.VITE_BASE_URL}event/report`,
         {
           title: event._id,
           issue: finalReason,
@@ -92,8 +93,7 @@ function SlugEvent() {
     }
   };
 
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
@@ -106,7 +106,7 @@ function SlugEvent() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Oops!</h2>
-          <p className="text-gray-600">{error || 'Event not found'}</p>
+          <p className="text-gray-600">{error?.message || 'Event not found'}</p>
         </div>
       </div>
     );
