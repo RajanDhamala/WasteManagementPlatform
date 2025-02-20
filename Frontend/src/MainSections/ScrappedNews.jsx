@@ -1,56 +1,44 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 import moment from 'moment';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
-import "tailwindcss/tailwind.css";
 
-function LoadingSkeleton() {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {[...Array(9)].map((_, index) => (
-        <Card key={index} className="shadow-sm">
-          <Skeleton className="w-full h-48" />
-          <CardContent className="mt-2">
-            <Skeleton className="h-4 w-3/4 mb-2" />
-            <Skeleton className="h-4 w-1/2 mb-2" />
-            <Skeleton className="h-3 w-1/4" />
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
-}
+
+const fetchNews = async (scrap) => {
+  const response = await axios.get(`${import.meta.env.VITE_BASE_URL}scrap/scrapnews`, {
+    params: { scrap },
+  });
+  return response.data.data.news || [];
+};
 
 function ScrappedNews() {
-  const [news, setNews] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
+  const queryClient = useQueryClient();
   const [scrap, setScrap] = useState(false);
+  
+  const { data: news = [], isLoading, isError, refetch, isFetching } = useQuery({
+    queryKey: ['news', scrap],
+    queryFn: () => fetchNews(scrap),
+    keepPreviousData: true,
+    staleTime: 1000 * 60 * 5, 
+  });
 
-  const fetchNews = async () => {
-    try {
-      const isInitialLoad = !scrap;
-      isInitialLoad ? setLoading(true) : setRefreshing(true);
-      const response = await axios.get(`${import.meta.env.VITE_BASE_URL}scrap/scrapnews`, {
-        params: { scrap: scrap ? true : false }
-      });
-      setNews(response.data.data.news || []);
-      setError(null);
-    } catch (err) {
-      setError('Failed to load news');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+
+  const handleRefresh = () => {
+    setScrap(true);
+    setTimeout(() => {
+      refetch();
+    }, 4000);
   };
 
-  useEffect(() => {
-    fetchNews();
-  }, []);
+  const handlePageReload = () => {
+    setTimeout(() => {
+      window.location.reload();
+    }, 5000); 
+  };
 
   return (
     <div className="container mx-auto p-4 mt-14">
@@ -58,20 +46,20 @@ function ScrappedNews() {
         <h1 className="text-2xl font-bold">Latest News</h1>
         <Button
           onClick={() => {
-            setScrap(true);
-            fetchNews();
+            handleRefresh();
+            handlePageReload(); // Call to reload the page after refresh
           }}
-          disabled={refreshing}
+          disabled={isFetching}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 disabled:opacity-50"
         >
-          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-          {refreshing ? 'Updating...' : 'Refresh News'}
+          <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
+          {isFetching ? 'Updating...' : 'Refresh News'}
         </Button>
       </div>
-      
-      {loading && <LoadingSkeleton />}
-      {error && <p className="text-red-500 text-lg text-center">{error}</p>}
-      {news.length === 0 && !loading && !error && (
+
+      {isLoading && <LoadingSkeleton />}
+      {isError && <p className="text-red-500 text-lg text-center">Failed to load news</p>}
+      {news.length === 0 && !isLoading && !isError && (
         <p className="text-lg text-gray-500 text-center">No news available.</p>
       )}
 
@@ -104,6 +92,23 @@ function ScrappedNews() {
           </Card>
         ))}
       </div>
+    </div>
+  );
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {[...Array(9)].map((_, index) => (
+        <Card key={index} className="shadow-sm">
+          <Skeleton className="w-full h-48" />
+          <CardContent className="mt-2">
+            <Skeleton className="h-4 w-3/4 mb-2" />
+            <Skeleton className="h-4 w-1/2 mb-2" />
+            <Skeleton className="h-3 w-1/4" />
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }

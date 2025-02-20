@@ -7,7 +7,7 @@ import ReviewDine from '../BreakingHai/ReviewDine';
 import axios from 'axios';
 import { AnimatePresence, motion } from 'framer-motion';
 
-// Function to fetch event details
+
 const fetchEventDetails = async (decodedTitle) => {
   const response = await axios.get(`${import.meta.env.VITE_BASE_URL}event/eventinfo/${decodedTitle}`);
   return response.data.data;
@@ -23,7 +23,7 @@ function SlugEvent() {
   const [reportReason, setReportReason] = useState('');
   const [otherReason, setOtherReason] = useState('');
   const { setAlert } = useAlert();
-  const queryClient = useQueryClient(); // Using QueryClient for caching and prefetching
+  const queryClient = useQueryClient();
 
   const reportReasons = [
     "Fraudulent event",
@@ -35,14 +35,11 @@ function SlugEvent() {
     "Other"
   ];
 
-  // Use TanStack Query to fetch event data
+
   const { data: event, error, isLoading } = useQuery({
     queryKey: ['event', decodedTitle],  // Query key as an object key-value pair
     queryFn: () => fetchEventDetails(decodedTitle),  // Query function
     enabled: !!decodedTitle,  // Only run if decodedTitle is present
-    onSuccess: (data) => {
-      queryClient.setQueryData(['event', decodedTitle], data);  // Store the event data in cache
-    },
   });
 
   const nextImage = () => {
@@ -115,7 +112,6 @@ function SlugEvent() {
   return (
     <div className="min-h-screen bg-gray-50 pt-16">
       <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Back Button */}
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
@@ -125,7 +121,6 @@ function SlugEvent() {
         </button>
 
         <div className="grid md:grid-cols-2 gap-8">
-          {/* Image Gallery Section */}
           <div className="relative">
             <div className="aspect-video rounded-xl overflow-hidden bg-gray-100">
               {event.EventImg && event.EventImg.length > 0 && (
@@ -318,8 +313,6 @@ function SlugEvent() {
       </AnimatePresence>
       
     <ReviewDine event={event} />
- 
-
     </div>
   );
 }

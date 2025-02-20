@@ -9,9 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import useUserContext from '@/hooks/useUserContext';
-
-
-
+import { useQueries } from '@tanstack/react-query';
 
 const ReviewDine = ({ event }) => {
   const [showReviewModal, setShowReviewModal] = useState(false);

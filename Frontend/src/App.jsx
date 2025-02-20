@@ -6,6 +6,7 @@ import Alert from './AiComponnets/Alert';
 import Navbar from './Navbar';
 import useUserContext from './hooks/useUserContext';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import TanStack from './TanStack';
 import {
   LandingPage,
   EventSection,
@@ -16,7 +17,9 @@ import {
   VerifyUser,
   ForgotPassword,
   ScrappedNews,
+  ComminitySection,
 } from './LazyLoading/Lazyloading';
+import Paginationme from './MainSections/Pagination';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -59,6 +62,9 @@ const App = () => {
               <Route path="/scrapnews" element={<ScrappedNews />} />
               <Route path="/forgot" element={<ForgotPassword />} />
               <Route path="/verify" element={<VerifyUser />} />
+              <Route path="/pagination" element={<Paginationme />} />
+              <Route path="/community" element={<ComminitySection />} />
+              <Route path="/tanstack" element={<TanStack />} />
             </Routes>
           </Suspense>
         </BrowserRouter>

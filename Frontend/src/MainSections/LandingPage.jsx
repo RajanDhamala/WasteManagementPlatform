@@ -6,6 +6,7 @@ import { motion, useScroll, useTransform } from "framer-motion"
 import { useAlert } from "@/UserContext/AlertContext"
 import axios from 'axios'
 
+
 const LandingPage = () => {
   const { scrollYProgress } = useScroll()
   const opacity = useTransform(scrollYProgress, [0, 1], [1, 0])
@@ -14,21 +15,33 @@ const LandingPage = () => {
   const [email,setemail]=useState('')
   const {setAlert}=useAlert()
 
-  const SubscribeDb=async()=>{
-    console.log(email)
-    try{
-      const response=await axios.post(`${import.meta.env.VITE_BASE_URL}event/subscribe`,{email})
-      console.log(response.data)
-      if(response.data.statusCode==200){
-        setAlert({type:'success',message:response.data.message})
-      }else if(response.data.statusCode==400){
-        setAlert({type:'error',message:response.data.message})
-      }
-    }catch(err){
-      console.log(err)
-      setAlert({type:'error',message:'Error in subscribing'})
+  const validateEmail = (email) => {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+  };
+  
+  const SubscribeDb = async () => {
+    if (!validateEmail(email)) {
+      setAlert({ type: 'error', message: 'Invalid email address.' });
+      return;
     }
-  }
+    console.log(email);
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_BASE_URL}event/subscribe`,
+        { email }
+      );
+      console.log(response.data);
+      if (response.data.statusCode === 200) {
+        setAlert({ type: 'success', message: response.data.message});
+      } else if (response.data.statusCode === 400) {
+        setAlert({ type: 'error', message: response.data.message });
+      }
+    } catch (err) {
+      console.log(err);
+      setAlert({ type: 'error', message: 'Error in subscribing' });
+    }
+  };
 
   return (
     <>
@@ -230,14 +243,16 @@ const LandingPage = () => {
               <h4 className="text-lg font-semibold mb-4">Connect With Us</h4>
               <p className="text-green-100 mb-4">Join our newsletter to stay updated with the latest events.</p>
               <div className="flex gap-2">
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e)=>setemail(e.target.value)}
-                  name="email"
-                  placeholder="Enter your email"
-                  className="px-4 py-2 rounded-lg bg-green-700 text-white placeholder-green-200 flex-grow focus:outline-none"
-                />
+              <input
+              type="email"
+              onChange={(e) => setemail(e.target.value)}
+              value={email}
+              placeholder="Enter your email"
+              name="email"
+              required
+              className="px-4 py-2 rounded-lg bg-green-700 text-white placeholder-green-200 flex-grow focus:outline-none"
+              />
+
                 <motion.button
                   className="bg-green-600 px-4 py-2 rounded-lg hover:bg-green-500"
                   whileHover={{ scale: 1.05 }}

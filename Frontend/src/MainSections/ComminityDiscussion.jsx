@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { MessageCircle, Trophy, Users, Heart, Share2, ThumbsUp, Star, MessageSquare, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import RankingList from '@/BreakingHai/Ranking';
 
 const CommunitySection = () => {
   const [activeTab, setActiveTab] = useState('discussions');
 
-  // Animation variants
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -27,7 +27,6 @@ const CommunitySection = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
-      {/* Hero Section */}
       <div className="relative overflow-hidden mb-16">
         <img 
           src="/api/placeholder/1920/600" 
@@ -42,7 +41,7 @@ const CommunitySection = () => {
             transition={{ duration: 0.8 }}
           >
             <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
-              Join Our Green Community
+              Join Our EcoClean Community
             </h1>
             <p className="text-xl text-green-50 max-w-2xl mb-8">
               Together, we're building a sustainable future through community action, shared knowledge, and collective impact.
@@ -100,7 +99,7 @@ const CommunitySection = () => {
         </motion.div>
       </div>
 
-      {/* Community Leaders */}
+      {/* Community Leaders
       <div className="container mx-auto px-4 mb-16">
         <motion.div
           initial={{ opacity: 0 }}
@@ -143,7 +142,8 @@ const CommunitySection = () => {
             ))}
           </div>
         </motion.div>
-      </div>
+      </div> */}
+      <RankingList/>
 
       {/* Discussions Section */}
       <div className="bg-green-50 py-16">
