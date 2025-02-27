@@ -55,7 +55,7 @@ const LoginUser = asyncHandler(async (req, res) => {
         return res.send(new ApiResponse(400, 'Please Fill All The Fields', null));
       }
 
-      const existingUser = await User.findOne({ email }).select('password email name _id ');
+      const existingUser = await User.findOne({ email }).select('password email name _id ProfileImage ');
       console.log(existingUser);
 
       if (!existingUser) {
@@ -76,6 +76,12 @@ const LoginUser = asyncHandler(async (req, res) => {
         { $set: { RefreshToken: refreshToken } },  
         { new: true } 
     );
+
+    const currentUser={
+      name:existingUser.name,
+      _id:existingUser._id,
+      ProfileImage:existingUser.ProfileImage
+    }
       
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
@@ -88,14 +94,15 @@ const LoginUser = asyncHandler(async (req, res) => {
         secure: true, 
         maxAge: 10 * 60 * 1000, 
       });
-      const currentUser={
-        name:existingUser.name,
-        email:existingUser.email,
-        _id:existingUser._id
-      }
-  
+      res.cookie(
+        'CurrentUser',
+        JSON.stringify(currentUser),
+        {
+          secure: true,
+          maxAge: 7 * 24 * 60 * 60 * 1000,
+        }
+      )
       res.send(new ApiResponse(200, 'User Logged In Successfully', currentUser));
-  
     } catch (error) {
       console.error('Error during login:', error);
       res.status(500).send(new ApiResponse(500, 'Internal Server Error', null));
@@ -113,6 +120,7 @@ const LoginUser = asyncHandler(async (req, res) => {
     try{
       res.clearCookie('accessToken');
       res.clearCookie('refreshToken');
+      res.clearCookie('CurrentUser');
       res.send(new ApiResponse(200, 'User Logged Out Successfully', null));
     }catch(err){
       console.log("err logging out",err)
@@ -175,7 +183,6 @@ const UserProfile=asyncHandler(async(req,res)=>{
     res.send(new ApiResponse(500, 'Internal Server Error', null));
   }
 })
-
 
 const ForgotPassword=asyncHandler(async(req,res)=>{
   const {email}=req.body;

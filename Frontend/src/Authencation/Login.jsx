@@ -5,7 +5,8 @@ import { Leaf, Mail, Lock, Loader2 } from "lucide-react";
 import Confetti from 'react-confetti';
 import axios from "axios";
 import useUserContext from "../hooks/useUserContext";
-import { useAlert } from "@/UserContext/AlertContext";  // Importing the alert context
+import { useAlert } from "@/UserContext/AlertContext"; 
+import Cookies from 'js-cookie';
 
 const Login = () => {
     const [email, setEmail] = useState("");
@@ -20,11 +21,13 @@ const Login = () => {
 
     const { setisLoggedIn, setCurrentUser, isLoggedIn, CurrentUser } = useUserContext();
     useEffect(() => {
-        if (CurrentUser && isLoggedIn) {
-            navigate("/");
+        const user = Cookies.get("CurrentUser");
+        if (user) {
+          console.log("User:", user);
+        } else {
+          console.log("No user found in cookies");
         }
-    }, [isLoggedIn]);
-
+      }, [isLoggedIn]);
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -38,6 +41,7 @@ const Login = () => {
         try {
             const response = await axios.post("http://localhost:8000/user/login", { email, password }, { withCredentials: true });
             console.log(response.data);
+            
             if (response.data.statusCode == '200') {
                 console.log("Login Successful:", response.data);
                 setShowConfetti(true);

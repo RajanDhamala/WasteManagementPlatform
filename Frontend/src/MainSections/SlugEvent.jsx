@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, Users, Clock, ChevronLeft, ChevronRight, LinkIcon, ArrowLeft, AlertTriangle } from 'lucide-react';
-import { useQuery, useQueryClient } from '@tanstack/react-query'; // Import useQuery and useQueryClient
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAlert } from '@/UserContext/AlertContext';
 import ReviewDine from '../BreakingHai/ReviewDine';
 import axios from 'axios';
 import { AnimatePresence, motion } from 'framer-motion';
-
 
 const fetchEventDetails = async (decodedTitle) => {
   const response = await axios.get(`${import.meta.env.VITE_BASE_URL}event/eventinfo/${decodedTitle}`);
@@ -35,11 +34,10 @@ function SlugEvent() {
     "Other"
   ];
 
-
   const { data: event, error, isLoading } = useQuery({
-    queryKey: ['event', decodedTitle],  // Query key as an object key-value pair
-    queryFn: () => fetchEventDetails(decodedTitle),  // Query function
-    enabled: !!decodedTitle,  // Only run if decodedTitle is present
+    queryKey: ['event', decodedTitle],
+    queryFn: () => fetchEventDetails(decodedTitle),
+    enabled: !!decodedTitle,
   });
 
   const nextImage = () => {
@@ -92,8 +90,38 @@ function SlugEvent() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+      <div className="min-h-screen bg-gray-50 pt-16">
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="h-6 w-24 bg-gray-200 rounded-lg mb-6 animate-pulse"></div>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            <div className="relative">
+              <div className="aspect-video rounded-xl overflow-hidden bg-gray-200 animate-pulse"></div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="h-8 w-3/4 bg-gray-200 rounded-lg animate-pulse"></div>
+
+              <div className="space-y-4">
+                <div className="h-6 w-1/2 bg-gray-200 rounded-lg animate-pulse"></div>
+                <div className="h-6 w-1/2 bg-gray-200 rounded-lg animate-pulse"></div>
+                <div className="h-6 w-1/2 bg-gray-200 rounded-lg animate-pulse"></div>
+                <div className="h-6 w-1/2 bg-gray-200 rounded-lg animate-pulse"></div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="h-20 bg-gray-200 rounded-lg animate-pulse"></div>
+                <div className="h-20 bg-gray-200 rounded-lg animate-pulse"></div>
+              </div>
+
+              <div className="flex items-center gap-3 pt-4">
+                <div className="h-12 w-32 bg-gray-200 rounded-lg animate-pulse"></div>
+                <div className="h-12 w-12 bg-gray-200 rounded-lg animate-pulse"></div>
+                <div className="h-12 w-12 bg-gray-200 rounded-lg animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -125,7 +153,7 @@ function SlugEvent() {
             <div className="aspect-video rounded-xl overflow-hidden bg-gray-100">
               {event.EventImg && event.EventImg.length > 0 && (
                 <img
-                draggable='false'
+                  draggable='false'
                   src={event.EventImg[currentImageIndex]}
                   alt={`Event image ${currentImageIndex + 1}`}
                   className="w-full h-full object-cover"
@@ -161,7 +189,6 @@ function SlugEvent() {
             </div>
           </div>
 
-          {/* Event Details Section */}
           <div className="space-y-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-6">{event.title}</h1>
@@ -209,14 +236,14 @@ function SlugEvent() {
               <button className="flex-1 bg-green-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-green-700 active:bg-green-800 transition-colors">
                 Join Event
               </button>
-              <button 
+              <button
                 onClick={copyToClipboard}
                 className="p-3 border border-gray-200 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors"
                 aria-label="Share event"
               >
                 <LinkIcon className="w-5 h-5" />
               </button>
-              <button 
+              <button
                 onClick={() => setShowReportModal(true)}
                 className="p-3 border border-gray-200 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors text-red-500"
                 aria-label="Report event"
@@ -228,7 +255,6 @@ function SlugEvent() {
         </div>
       </div>
 
-
       {showShareToast && (
         <div className="fixed bottom-4 right-4 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg">
           Link copied to clipboard!
@@ -237,13 +263,13 @@ function SlugEvent() {
 
       <AnimatePresence>
         {showReportModal && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           >
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
@@ -252,7 +278,7 @@ function SlugEvent() {
               <h3 className="text-xl font-semibold text-gray-900 mb-4">
                 Report Event
               </h3>
-              
+
               <form onSubmit={handleReport} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -261,8 +287,7 @@ function SlugEvent() {
                   <select
                     value={reportReason}
                     onChange={(e) => setReportReason(e.target.value)}
-                    className="w-full rounded-lg border-gray-300 shadow-sm py-2 px-1  focus:border-green-500
-                             focus:ring-green-500"
+                    className="w-full rounded-lg border-gray-300 shadow-sm py-2 px-1 focus:border-green-500 focus:ring-green-500"
                     required
                   >
                     <option value="">Select a reason</option>
@@ -280,8 +305,7 @@ function SlugEvent() {
                     <textarea
                       value={otherReason}
                       onChange={(e) => setOtherReason(e.target.value)}
-                      className="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 
-                               focus:ring-green-500 px-2 py-1"
+                      className="w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 px-2 py-1"
                       rows={3}
                       placeholder="Describe the issue..."
                       required
@@ -293,15 +317,13 @@ function SlugEvent() {
                   <button
                     type="button"
                     onClick={() => setShowReportModal(false)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 
-                             rounded-lg hover:bg-gray-200 transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 
-                             rounded-lg hover:bg-red-700 transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
                   >
                     Submit Report
                   </button>
@@ -311,8 +333,8 @@ function SlugEvent() {
           </motion.div>
         )}
       </AnimatePresence>
-      
-    <ReviewDine event={event} />
+
+      <ReviewDine event={event} />
     </div>
   );
 }

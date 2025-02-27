@@ -4,6 +4,7 @@ import { MessageCircle, Trophy, Users, Heart, Share2, ThumbsUp, Star, MessageSqu
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import RankingList from '@/BreakingHai/Ranking';
 
+
 const CommunitySection = () => {
   const [activeTab, setActiveTab] = useState('discussions');
 

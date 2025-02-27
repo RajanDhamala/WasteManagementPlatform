@@ -1,10 +1,10 @@
 import React, { useState, useCallback } from 'react';
 import EventCard from './EventCard';
-import { Camera, Calendar, MapPin, Users, Plus, Clock, X, Loader2 } from 'lucide-react';
+import { Camera, Calendar, MapPin, Users, Plus, Clock, X, Loader2,
+Filter, CheckCircle, AlertCircle, ArrowDownAZ, ArrowUpAZ } from 'lucide-react';
 import axios from 'axios';
 import Alert from '@/AiComponnets/Alert';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-
 
 const SkeletonLoader = () => (
   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -22,15 +22,22 @@ const SkeletonLoader = () => (
   </div>
 );
 
-const fetchEvents = async () => {
-  const response = await axios.get(`${import.meta.env.VITE_BASE_URL}event/loadevents`, {
-    withCredentials: true,
-  });
-  if (response.data.statusCode === 200) {
-    return response.data.data.reverse();
+const fetchEvents = async (filter = 'all') => {
+  try {
+    const response = await axios.get(`${import.meta.env.VITE_BASE_URL}event/loadevents`, {
+      params: { filter },
+      withCredentials: true,
+    });
+
+    if (response.data.statusCode === 200) {
+      return response.data.data; 
+    }
+    throw new Error(response.data.message);
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to fetch events');
   }
-  throw new Error(response.data.message);
 };
+
 
 function EventSection() {
   const initialFormState = {
@@ -51,15 +58,27 @@ function EventSection() {
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const queryClient = useQueryClient();
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState('all');
 
+  const filterOptions = [
+    { value: 'all', label: 'All Events', icon: <Filter size={20} /> },
+    { value: 'latest', label: 'Latest', icon: <ArrowDownAZ size={20} /> },
+    { value: 'oldest', label: 'Oldest', icon: <ArrowUpAZ size={20} /> },
+    { value: 'completed', label: 'Completed', icon: <CheckCircle size={20} /> },
+    { value: 'pending', label: 'Pending', icon: <AlertCircle size={20} /> }
+  ];
 
   const { data: eventinfo, isLoading, error } = useQuery({
-    queryKey: ['events'],
-    queryFn: fetchEvents,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    refetchInterval:5000,
+    queryKey: ['events', selectedFilter],
+    queryFn: () => fetchEvents(selectedFilter),
+    staleTime: 1000 * 60 * 5,
   });
+
+  const handleFilterSelect = (value) => {
+    setSelectedFilter(value);
+    setIsFilterOpen(false);
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -159,8 +178,6 @@ function EventSection() {
         setFormData(initialFormState);
         setImagePreview(null);
         setIsCreateModalOpen(false);
-        // Invalidate and refetch the events query to update the list
-        queryClient.invalidateQueries(['events']);
       }
     } catch (error) {
       setAlert({
@@ -180,34 +197,82 @@ function EventSection() {
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-3xl font-bold text-gray-800">Community Events</h2>
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-          >
-            <Plus size={20} />
-            Create Event
-          </button>
-        </div>
+          <div className="flex items-center gap-4">
+            {/* Add Filter Dropdown */}
+            <div className="relative">
+              <button 
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                {filterOptions.find(opt => opt.value === selectedFilter)?.icon}
+                <span>{filterOptions.find(opt => opt.value === selectedFilter)?.label}</span>
+              </button>
 
-        {isLoading ? (
-          <SkeletonLoader />
-        ) : error ? (
-          <p className="text-red-500">{error.message}</p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {eventinfo.map((event, index) => (
-              <EventCard
-                key={event._id || index}
-                title={event.title}
-                date={new Date(event.date).toDateString()}
-                location={event.location}
-                Peoples={event.participantCount}
-                EventImg={event.EventImg}
-                status={event.EventStatus}
-              />
-            ))}
+              {isFilterOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white border rounded-lg shadow-lg z-10">
+                  {filterOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => handleFilterSelect(option.value)}
+                      className={`flex items-center gap-2 w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors
+                        ${selectedFilter === option.value ? 'bg-gray-50' : ''}`}
+                    >
+                      {option.icon}
+                      <span>{option.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <Plus size={20} />
+              Create Event
+            </button>
           </div>
-        )}
+        </div>
+                          {isLoading ? (
+                    <SkeletonLoader />
+                  ) : error ? (
+                    <p className="text-red-500">{error.message}</p>
+                  ) : eventinfo.length === 0 ? (
+                    <div className="flex flex-col justify-center items-center text-center py-20">
+                      <div className="max-w-md mx-auto">
+                        <h2 className="text-2xl font-bold text-gray-700 mb-4">
+                          No Events Available
+                        </h2>
+                        <p className="text-gray-500 mb-6">
+                          It looks like there are no events scheduled at the moment. Please check back later or create your own event to get started!
+                        </p>
+                        <button
+                          className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition duration-300"
+                          onClick={() => {
+                            setIsCreateModalOpen(true)
+                          }}
+                        >
+                          Create Event
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      {eventinfo.map((event, index) => (
+                        <EventCard
+                          key={event._id || index}
+                          title={event.title}
+                          date={new Date(event.date).toDateString()}
+                          location={event.location}
+                          Peoples={event.participantCount}
+                          EventImg={event.EventImg}
+                          status={event.EventStatus}
+                        />
+                      ))}
+                    </div>
+                  )}
+
 
         {isCreateModalOpen && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

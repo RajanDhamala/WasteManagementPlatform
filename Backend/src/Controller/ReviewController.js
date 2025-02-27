@@ -8,29 +8,26 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 
-const EditUserReview=asyncHandler(async(req,res)=>{
-    const {reviewId,review}=req.params;
-    const user=req.user;
-
-    console.log(reviewId,review)
+const EditUserReview = asyncHandler(async (req, res) => {
+    const { reviewId, review } = req.params;
+    const user = req.user;
 
     if (!reviewId || !review) {
         throw new ApiError(400, 'Review ID and review text are required');
     }
-const existingReview=await Review.findOne({_id:reviewId});
-if(!existingReview){
-    throw new ApiError(404, 'Review not found')
-}
-console.log(existingReview)
 
-if(existingReview.Reviewer.toString()!==user._id.toString()){
-    throw new ApiError(403, 'You are not allowed to edit this review')
-}
-existingReview.Review=review;
-await existingReview.save();
+    const updatedReview = await Review.findOneAndUpdate(
+        { _id: reviewId, Reviewer: user._id },
+        { Review: review },
+        { new: true } 
+    );
 
-res.send(new ApiResponse(200, 'Review updated successfully', existingReview));
-})
+    if (!updatedReview) {
+        throw new ApiError(403, 'Review not found or you are not allowed to edit it');
+    }
+
+    res.send(new ApiResponse(200, 'Review updated successfully', updatedReview));
+});
 
 const ReportReview=asyncHandler(async(req,res)=>{
     const {reviewId}=req.params;

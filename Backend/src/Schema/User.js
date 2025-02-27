@@ -50,7 +50,7 @@ const UserSchema=new mongoose.Schema({
         default:''
     },Points:{
         type:Number,
-        default:0
+        default:200
     },isBlocked:{
         type:Boolean,
         default:false

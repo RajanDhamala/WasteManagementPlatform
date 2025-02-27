@@ -27,7 +27,6 @@ const AnimatedNumber = ({ number }) => {
 };
 
 export default function RankingList() {
-  // State to toggle polling on/off
   const [isPolling, setIsPolling] = useState(true);
 
   const fetchRanking = async () => {
@@ -41,12 +40,10 @@ export default function RankingList() {
     queryKey: ["ranking"],
     queryFn: fetchRanking,
     staleTime: 1000 * 60 * 5,
-    // Enable polling only when isPolling is true
     refetchInterval: isPolling ? 10000 : false,
     refetchIntervalInBackground:false,
   });
 
-  // Toggle polling state
   const togglePolling = () => {
     setIsPolling((prev) => !prev);
   };
