@@ -2,7 +2,9 @@ import asyncHandler from "../Utils/AsyncHandler.js";
 import ApiResponse from "../Utils/ApiResponse.js";
 import ApiError from "../Utils/ApiError.js";
 import fs from 'fs'
-import { log } from "console";
+
+import { Redisclient } from "../Utils/RedisUtil.js";
+
 
 const CreatingChunks = asyncHandler(async (req, res) => {
     console.log('......')
@@ -27,8 +29,22 @@ const CreatingChunks = asyncHandler(async (req, res) => {
       res.status(500).send(new ApiResponse(500, 'Failed to stream file', err.message));
     });
   });
+
+
+  const CreatingRedis=asyncHandler(async(req,res)=>{
+   const response=await Redisclient.get('name','lets go hai',10)
+   const data=await Redisclient.get('msg:1')
+    console.log(response,data)
+
+    res.send({
+        message:'Data inserted',
+        data:response,
+        get:data
+    })
+  })
   
 
 export {
-    CreatingChunks
+    CreatingChunks,
+    CreatingRedis
 }

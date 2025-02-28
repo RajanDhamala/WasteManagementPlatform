@@ -35,7 +35,7 @@ UserRoute.post('/leaveEvent',AuthMiddleware,LeaveEvent);
 
 UserRoute.get('/joinedevents',AuthMiddleware,SeeJoinedEvents);
 
-UserRoute.get('/info',browserdetails);
+UserRoute.get('/info',AuthMiddleware,browserdetails);
 
 UserRoute.get('/ai',(req,res)=>{
     AiApi('how ai works')

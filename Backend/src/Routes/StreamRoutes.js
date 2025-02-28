@@ -1,4 +1,4 @@
-import {CreatingChunks} from '../Controller/StreamsController.js'
+import {CreatingChunks,CreatingRedis} from '../Controller/StreamsController.js'
 import AuthMiddleware from '../Middleware/JwtMiddleware.js'
 import express from 'express'
 
@@ -9,6 +9,8 @@ StremRoutes.get('/',AuthMiddleware,(req,res)=>{
 })
 
 StremRoutes.get('/chunks',AuthMiddleware,CreatingChunks)
+
+StremRoutes.get('/redis',CreatingRedis)
 
 
 export default StremRoutes

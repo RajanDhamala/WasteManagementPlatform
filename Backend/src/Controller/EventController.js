@@ -6,6 +6,7 @@ import Event from '../Schema/Event.js'
 import User from '../Schema/User.js'
 import Review from '../Schema/Review.js'
 import ApiError from '../Utils/ApiError.js'
+import { Redisclient } from '../Utils/RedisUtil.js'
 
 dotenv.config()
 
@@ -117,6 +118,14 @@ dotenv.config()
                 break;
         }
 
+        const cacheKey = `events:${filter || "default"}`;
+
+        const cachedData = await Redisclient.json.get(cacheKey);
+        if (cachedData) {
+            console.log("Returning Cached Data");
+            return res.send(new ApiResponse(200, "Events Loaded Successfully (Cached)", cachedData));
+        }
+
         const pipeline = [
             { $match: matchStage }, 
             {
@@ -142,7 +151,11 @@ dotenv.config()
         const Events = await Event.aggregate(pipeline);
         console.log("Filtered Events:", Events);
 
+        await Redisclient.json.set(cacheKey, "$", Events);
+        await Redisclient.expire(cacheKey, 300); 
+
         return res.send(new ApiResponse(200, "Events Loaded Successfully", Events));
+
     } catch (err) {
         console.log("Error in Load Events", err);
         return res.status(500).send(new ApiResponse(500, "Internal Server Error"));
@@ -150,7 +163,6 @@ dotenv.config()
 });
 
   
-
   const joinEvent = asyncHandler(async (req, res) => {
     console.log("Join Event Controller");
     const user = req.user;

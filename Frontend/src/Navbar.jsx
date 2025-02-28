@@ -1,17 +1,18 @@
 import { useState, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
-import { Calendar, Users, X, Menu, Home, LogIn, UserPlus,ChevronUp } from "lucide-react";
+import { Calendar, Users, X, Menu, Home, LogIn, UserPlus, ChevronUp } from "lucide-react";
 import { AnimatePresence, motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import useUserContext from "@/hooks/useUserContext";
 import axios from "axios";
 
-// Create a portal container for the navbar
+
+
+import { createPortal } from "react-dom";
+
 const NavbarPortal = ({ children }) => {
   const [portalRoot, setPortalRoot] = useState(null);
-  
+
   useEffect(() => {
-    // Create or get the portal root element
     let element = document.getElementById("navbar-portal-root");
     if (!element) {
       element = document.createElement("div");
@@ -20,7 +21,6 @@ const NavbarPortal = ({ children }) => {
     }
     setPortalRoot(element);
     
-    // Clean up on unmount
     return () => {
       if (element.parentNode) {
         element.parentNode.removeChild(element);
@@ -32,14 +32,17 @@ const NavbarPortal = ({ children }) => {
 };
 
 const Navbar = () => {
-  const { isMenuOpen, setIsMenuOpen } = useUserContext();
+  const { user } = useUserContext();
   const menuItems = [
     { name: "Home", path: "/", icon: Home },
     { name: "Events", path: "/events", icon: Calendar },
     { name: "Community", path: "/community", icon: Users },
-    { name: "Login", path: "/login", icon: LogIn },
-    { name: "Register", path: "/register", icon: UserPlus },
-    { name: "Profile", path: "/profile", icon: Users },
+    ...(user ? [
+      { name: "Profile", path: "/profile", icon: Users }
+    ] : [
+      { name: "Login", path: "/login", icon: LogIn },
+      { name: "Register", path: "/register", icon: UserPlus }
+    ])
   ];
 
   const LogoutUser = async () => {
@@ -48,9 +51,7 @@ const Navbar = () => {
         withCredentials: true,
       });
       if (response.data.statusCode === "200") {
-        console.log("Logged Out Successfully");
-      } else {
-        console.log("Error logging out");
+        window.location.reload();
       }
     } catch (err) {
       console.error(err, "Error logging out");

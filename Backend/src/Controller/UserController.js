@@ -9,6 +9,8 @@ import {sendMail,generateOTP} from '../Utils/MailUtil.js'
 import upload2Cloudinary from "../Utils/CloundinaryImg.js";
 import Event from '../Schema/Event.js';
 
+import UserActivty from '../Schema/UserActivity.js';
+
 
 const RegisterUser = asyncHandler(async (req, res) => {
     const { username, email, password } = req.body;
@@ -29,6 +31,7 @@ const RegisterUser = asyncHandler(async (req, res) => {
         if (existingUserUsername) {
             return res.send(new ApiResponse(400, 'Username already exists', null));
         }
+
         const hashedPassword = await bcrypt.hash(password, 10);
         const user = new User({
             name: username,
@@ -37,6 +40,19 @@ const RegisterUser = asyncHandler(async (req, res) => {
         });
 
         await user.save();
+
+        const UserActivity= new UserActivty({
+          User:user._id,
+          activity:[{
+              type:"User registartion",
+              time:Date.now(),
+              ip:req.ip,
+              browser:req.useragent.browser,
+              location:'hello hi byee',
+              Source:req.useragent.source
+          }]
+      })
+      await UserActivity.save();
         console.log("User registered successfully");
         res.send(new ApiResponse(200, 'User Registered Successfully', null));
     } catch (err) {
@@ -396,16 +412,29 @@ const browserdetails=asyncHandler(async(req,res)=>{
  console.log(req.headers)
   console.log(req.ip)
 
-  res.send(new ApiResponse(200, "Browser Details", {ip: req.ip,
-    browser: req.useragent.browser,
-    version: req.useragent.version,
-    os: req.useragent.os,
-    platform: req.useragent.platform,
-    source: req.useragent.source}));
+  console.log(req.user)
+
+  const existingActivity=await UserActivty.findOne({User:req.user._id});
+  if(existingActivity){
+    console.log('activity:',existingActivity);
+    return res.send(new ApiResponse(200, "Browser Details",));
+  }
+
+  const activity=new UserActivty({
+    User:req.user._id,
+    activity:[{
+        type:"tyying to log user activity",
+        time:Date.now(),
+        ip:req.ip,
+        browser:req.useragent.browser,
+        location:'hello hi byee',
+        Source:req.useragent.source
+    }]
+  })
+    await activity.save();
+
+  res.send(new ApiResponse(200, "Browser Details", {activity}));
 })
-
-
-
 
 export {
     RegisterUser,
