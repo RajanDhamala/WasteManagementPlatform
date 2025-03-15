@@ -23,6 +23,7 @@ import {
 import Paginationme from "./MainSections/Pagination";
 import Cookies from "js-cookie";
 import ImageComparer from "./AiComponnets/ImageComparer";
+import ChessBoard from "./ChessBoard";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -80,6 +81,7 @@ const App = () => {
               <Route path="/tanstack" element={<TanStack />} />
               <Route path="/eventreport/:title" element={<EventReportSection />} />
               <Route path="/compare" element={<ImageComparer />} />
+              <Route path="/chess" element={<ChessBoard />} />
             </Routes>
           </Suspense>
         </BrowserRouter>

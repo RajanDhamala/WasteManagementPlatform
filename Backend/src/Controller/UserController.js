@@ -10,6 +10,7 @@ import upload2Cloudinary from "../Utils/CloundinaryImg.js";
 import Event from '../Schema/Event.js';
 
 import UserActivty from '../Schema/UserActivity.js';
+import {Redisclient} from '../Utils/RedisUtil.js';
 
 
 const RegisterUser = asyncHandler(async (req, res) => {
@@ -400,6 +401,7 @@ const LeaveEvent = asyncHandler(async (req, res) => {
 
     await event.save();
     await userRecord.save();
+    await Redisclient.del(["events:all","events:latest","events:oldest","events:completed","events:pending"]);
 
     return res.send(new ApiResponse(200, "Left Event Successfully", null));
   } catch (err) {

@@ -50,44 +50,55 @@ dotenv.config()
     }
   });
 
-  const Eventinfo=asyncHandler(async(req,res)=>{
-    const {title}=req.params;
-    
+  const Eventinfo = asyncHandler(async (req, res) => {
+    const { title } = req.params;
+
     const isValidTitle = /^[a-zA-Z0-9\s\-'&]+$/.test(title);
     
     if (!isValidTitle) {
         return res.status(400).json({ error: "Invalid event title" });
     }
-    
-      console.log("Title:",title);  
-    try{
-      const response = await Event.findOne({ title })
-      .select("title date time location description VolunteersReq problemStatement EventImg EventRating Host")
-      .populate({
-        path: "EventReview",
-        select: "Review Rating Reviewer createdAt",
-        populate: {
-          path: "Reviewer",
-          select: "name ProfileImage",
-        },
-      })
-      .populate({
-        path: "Host",
-        select: "name ProfileImage",
-      });
-        console.log("Response:",response);
+    console.log("Title:", title);  
+    const cacheKey = `event:${title}`;
 
-        if(!response){
-            return res.send(new ApiResponse(404,'Event not found',null))
+    try {
+        const cachedData = await Redisclient.json.get(cacheKey);
+        if (cachedData) {
+            console.log("Returning Cached Data");
+            return res.send(new ApiResponse(200, 'Event Info (Cached)', cachedData));
         }
-        return res.send(new ApiResponse(200,'Event Info',response))
 
-    }catch(err){
-        console.log("Error in Event Info",err);
-        return res.send(new ApiResponse(500,'Error in retriving info',null))
+        const response = await Event.findOne({ title })
+            .select("title date time location description VolunteersReq problemStatement EventImg EventRating Host")
+            .populate({
+                path: "EventReview",
+                select: "Review Rating Reviewer createdAt",
+                populate: {
+                    path: "Reviewer",
+                    select: "name ProfileImage",
+                },
+            })
+            .populate({
+                path: "Host",
+                select: "name ProfileImage",
+            });
+
+        console.log("Response:", response);
+
+        if (!response) {
+            return res.send(new ApiResponse(404, 'Event not found', null));
+        }
+
+        await Redisclient.json.set(cacheKey, "$", response); 
+        await Redisclient.expire(cacheKey, 300);
+        return res.send(new ApiResponse(200, 'Event Info', response));
+
+    } catch (err) {
+        console.log("Error in Event Info", err);
+        return res.send(new ApiResponse(500, 'Error in retrieving info', null));
     }
+});
 
-  })
 
   const LoadEvents = asyncHandler(async (req, res) => {
     try {
@@ -167,7 +178,7 @@ dotenv.config()
     console.log("Join Event Controller");
     const user = req.user;
     const { _id } = req.body;
-    console.log("User:", user,_id);
+    console.log("User:", user._id,"event id :",_id);
   
     if (!user) {
       return res.send(new ApiResponse(400, "Invalid Credentials", null));
@@ -205,7 +216,10 @@ dotenv.config()
   
       await existingUser.save();
       await event.save();
-  
+      const data = await Redisclient.json.numIncrBy('events:all', `$[?(@.title=="${_id}")].participantCount`, 1);
+      console.log("Participant count incremented successfully:", data);
+
+
       return res.send(new ApiResponse(200, "Joined Event Successfully", null));
     } catch (err) {
       console.log("Error in Join Event", err);

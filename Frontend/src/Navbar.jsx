@@ -1,48 +1,18 @@
-import { useState, useRef, useEffect } from "react";
+import { useState,useEffect,useRef } from "react";
 import { Link } from "react-router-dom";
-import { Calendar, Users, X, Menu, Home, LogIn, UserPlus, ChevronUp } from "lucide-react";
+import { Calendar, Users, X, Home, LogIn, UserPlus, ChevronUp } from "lucide-react";
 import { AnimatePresence, motion, useMotionValue, useSpring, useTransform } from "framer-motion";
-import useUserContext from "@/hooks/useUserContext";
 import axios from "axios";
-
-
-
 import { createPortal } from "react-dom";
 
-const NavbarPortal = ({ children }) => {
-  const [portalRoot, setPortalRoot] = useState(null);
-
-  useEffect(() => {
-    let element = document.getElementById("navbar-portal-root");
-    if (!element) {
-      element = document.createElement("div");
-      element.id = "navbar-portal-root";
-      document.body.appendChild(element);
-    }
-    setPortalRoot(element);
-    
-    return () => {
-      if (element.parentNode) {
-        element.parentNode.removeChild(element);
-      }
-    };
-  }, []);
-  
-  return portalRoot ? createPortal(children, portalRoot) : null;
-};
-
 const Navbar = () => {
-  const { user } = useUserContext();
   const menuItems = [
     { name: "Home", path: "/", icon: Home },
     { name: "Events", path: "/events", icon: Calendar },
     { name: "Community", path: "/community", icon: Users },
-    ...(user ? [
-      { name: "Profile", path: "/profile", icon: Users }
-    ] : [
-      { name: "Login", path: "/login", icon: LogIn },
-      { name: "Register", path: "/register", icon: UserPlus }
-    ])
+    { name: "Profile", path: "/profile", icon: Users },  // Always available
+    { name: "Login", path: "/login", icon: LogIn },      // For non-logged-in users
+    { name: "Register", path: "/register", icon: UserPlus }  // For non-logged-in users
   ];
 
   const LogoutUser = async () => {
@@ -59,18 +29,40 @@ const Navbar = () => {
   };
 
   return (
+    // Rendering the Navbar inside a React Portal
     <NavbarPortal>
       <FloatingDock items={menuItems} onLogout={LogoutUser} />
     </NavbarPortal>
   );
 };
 
+// React Portal component
+const NavbarPortal = ({ children }) => {
+  const [portalRoot, setPortalRoot] = useState(null);
+
+  useEffect(() => {
+    const element = document.createElement("div");
+    element.id = "navbar-portal-root";
+    document.body.appendChild(element);
+    setPortalRoot(element);
+
+    return () => {
+      if (element.parentNode) {
+        element.parentNode.removeChild(element);
+      }
+    };
+  }, []);
+
+  return portalRoot ? createPortal(children, portalRoot) : null;
+};
+
+// FloatingDock Component (for both Mobile and Desktop)
 const FloatingDock = ({ items, onLogout }) => {
   return (
-    <div className="fixed bottom-4 left-0 right-0 flex justify-center items-center z-50">
+    <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 flex justify-center items-center z-50  max-w-[90%] rounded-xl shadow-lg">
       {/* Mobile Dock */}
       <MobileDock items={items} onLogout={onLogout} />
-      
+
       {/* Desktop Dock */}
       <DesktopDock items={items} onLogout={onLogout} />
     </div>
