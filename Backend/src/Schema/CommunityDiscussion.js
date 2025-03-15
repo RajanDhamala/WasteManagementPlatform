@@ -18,13 +18,7 @@ const ReplySchema = new Schema({
     date: {
         type: Date,
         default: Date.now
-    },
-    likes: [
-        {
-            type: Schema.Types.ObjectId,
-            ref: "User"
-        }
-    ]
+    }
 });
 
 
@@ -50,7 +44,7 @@ const CommentSchema = new Schema({
             ref: "User"
         }
     ],
-    replies: [ReplySchema]  // You can add replies later
+    replies: [ReplySchema]  
 });
 
 const CommunityDiscussionSchema = new Schema({

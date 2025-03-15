@@ -1,6 +1,6 @@
 import express from 'express';
 import AuthMiddleware from '../Middleware/JwtMiddleware.js';
-import { UserRanking,postData,getData,getAllEvents,CreateCommunityPost,getCommunityPost } from '../Controller/ComminityController.js';
+import { UserRanking,postData,getData,getAllEvents,CreateCommunityPost,getCommunityPost,LikeUnlikeDiscussion,CommentOnDiscussion } from '../Controller/ComminityController.js';
 
 const CommunityRoute=express.Router();
 
@@ -18,6 +18,8 @@ CommunityRoute.get('/GetAllEvents',AuthMiddleware,getAllEvents)
 
 CommunityRoute.post('/postTopic',AuthMiddleware,CreateCommunityPost)
 CommunityRoute.get('/getPost/:eventID',AuthMiddleware,getCommunityPost)
+CommunityRoute.put('/likeUnlikeDiscussion/:discussionId',AuthMiddleware,LikeUnlikeDiscussion)
+CommunityRoute.post('/commentOnDiscussion',AuthMiddleware,CommentOnDiscussion)
 
 
 export default CommunityRoute;

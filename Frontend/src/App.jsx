@@ -24,6 +24,7 @@ import Paginationme from "./MainSections/Pagination";
 import Cookies from "js-cookie";
 import ImageComparer from "./AiComponnets/ImageComparer";
 import ChessBoard from "./ChessBoard";
+import AboutUs from "./MainSections/AboutPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -82,6 +83,7 @@ const App = () => {
               <Route path="/eventreport/:title" element={<EventReportSection />} />
               <Route path="/compare" element={<ImageComparer />} />
               <Route path="/chess" element={<ChessBoard />} />
+              <Route path="/about" element={<AboutUs />} />
             </Routes>
           </Suspense>
         </BrowserRouter>

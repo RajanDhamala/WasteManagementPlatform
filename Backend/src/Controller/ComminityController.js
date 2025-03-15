@@ -6,6 +6,7 @@ import ApiError from '../Utils/ApiError.js'
 import Event from '../Schema/Event.js'
 import { Redisclient } from '../Utils/RedisUtil.js'
 import CommunityDiscussion from '../Schema/CommunityDiscussion.js'
+import mongoose from 'mongoose'
 
 
 const UserRanking=asyncHandler(async(req,res)=>{
@@ -179,106 +180,128 @@ const CreateCommunityPost = asyncHandler(async (req, res) => {
   return res.send(new ApiResponse(200, 'Post created successfully', { CommunityPost }));
 });
 
-
 const getCommunityPost = asyncHandler(async (req, res) => {
   const eventID = req.params.eventID;
+  const userId = req.user ? req.user._id.toString() : null;
 
   if (!eventID) {
     throw new ApiError(404, 'Please provide eventID');
   }
-
-  const cacheKey = `EventPosts_${eventID}`;
-  const cachedData = await Redisclient.json.get(cacheKey, '$');
-
-  if (cachedData) {
-    console.log('Cache hit');
-    return res.send(new ApiResponse(200, 'Successfully fetched data from cache', cachedData));
+  let EventPosts;
+  if (eventID === 'all') {
+    EventPosts = await CommunityDiscussion.aggregate([
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'postedBy',
+          foreignField: '_id',
+          as: 'postedByDetails',
+        },
+      },
+      { $unwind: { path: '$postedByDetails', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'comments.commentBy',
+          foreignField: '_id',
+          as: 'comments.commentByDetails',
+        },
+      },
+      { $unwind: { path: '$comments.commentByDetails', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          topic: 1,
+          postedBy: {
+            name: '$postedByDetails.name',
+            ProfileImage: '$postedByDetails.ProfileImage',
+            _id: '$postedByDetails._id',
+          },
+          comments: {
+            comment: 1,
+            commentBy: '$comments.commentByDetails.name',
+            commentByProfileImage: '$comments.commentByDetails.ProfileImage',
+          },
+          date: 1,
+          likesCount: { $size: '$likes' }, 
+          EventId: 1,
+          hasLiked: userId
+            ? { $in: [userId, { $map: { input: '$likes', as: 'like', in: { $toString: '$$like' } } }] }
+            : false,
+        },
+      },
+      { $sort: { date: -1 } },
+      { $limit: 10 },
+    ]).exec();
   } else {
-    let EventPosts;
-    if (eventID === 'all') {
-      EventPosts = await CommunityDiscussion.aggregate([
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'postedBy',
-            foreignField: '_id',
-            as: 'postedByDetails',
-          },
-        },
-        {
-          $unwind: {
-            path: '$postedByDetails',
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'comments.commentBy',
-            foreignField: '_id',
-            as: 'comments.commentByDetails',
-          },
-        },
-        {
-          $unwind: {
-            path: '$comments.commentByDetails',
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $project: {
-            topic: 1,
-            postedBy: {
-              name: '$postedByDetails.name',
-              ProfileImage: '$postedByDetails.ProfileImage',
-              _id: '$postedByDetails._id',
-            },  
-            comments: {
-              comment: 1,
-              commentBy: '$comments.commentByDetails.name',
-              commentByProfileImage: '$comments.commentByDetails.ProfileImage',
-            },
-            date: 1,
-            likes: 1,
-            dislikes: 1,
-            EventId: 1,
-          },
-        },
-        {
-          $sort: { date: -1 },
-        },
-        {
-          $limit: 10,
-        },
-      ]).exec();
-      await Redisclient.json.set(cacheKey, '$', EventPosts);
-      console.log('Cache miss, data stored in Redis');
-    } else {
-      EventPosts = await CommunityDiscussion.find({ EventId: eventID })
-        .populate('postedBy', 'name ProfileImage') 
-        .populate('comments.commentBy', 'name ProfileImage')
-        .exec();
 
-      await Redisclient.json.set(cacheKey, '$', EventPosts);
-      console.log('Cache miss, data stored in Redis');
-    }
+    EventPosts = await CommunityDiscussion.find({ EventId: eventID })
+      .populate('postedBy', 'name ProfileImage')
+      .populate('comments.commentBy', 'name ProfileImage')
+      .lean();
 
-    return res.send(new ApiResponse(200, 'Successfully fetched data', EventPosts));
+    EventPosts = EventPosts.map((post) => {
+      const hasLiked = post.likes
+        .map((likeId) => likeId.toString()) 
+        .includes(userId); 
+      return {
+        ...post,
+        hasLiked, 
+        likesCount: post.likes.length, 
+      };
+    });
   }
+
+  return res.send(new ApiResponse(200, 'Successfully fetched data', EventPosts));
 });
 
-const LikeUnlikeDiscussion=asyncHandler(async(req,res)=>{
-  const user=req.user
+
+const LikeUnlikeDiscussion = asyncHandler(async (req, res) => {
+  const user = req.user;
+  if (!user) throw new ApiError(404, 'User not found');
+
+  const { discussionId } = req.params;
+  if (!discussionId) throw new ApiError(404, 'Please provide discussionId');
+
+  const discussion = await CommunityDiscussion.findById(discussionId);
+  if (!discussion) throw new ApiError(404, 'Discussion not found');
+
+  let hasLiked = false;
+  if (discussion.likes.includes(user._id)) {
+      discussion.likes.pull(user._id);
+      hasLiked = false;
+  } else{
+      discussion.likes.push(user._id);
+      hasLiked = true;
+  }
+
+  await discussion.save();
+  console.log(hasLiked)
+  return res.send(new ApiResponse(200, 'Successfully updated reaction', {
+      hasLiked
+  }));
+});
+
+const CommentOnDiscussion=asyncHandler(async(req,res)=>{
+  const user=req.user;
   if(!user){
-    throw new ApiError(404,'User not found in the cookies')
+    throw new ApiError(404,'User not found')
   }
-  const {discussionId}=req.parms;
+  const {discussionId,comment}=req.body;
 
-  if(!discussionId){
-    throw new ApiError(404,'Please provide discussionId')
+  if(!discussionId || !comment){
+    throw new ApiError(404,'Please provide discussionId and comment')
   }
-  
 
+  const discussion=await CommunityDiscussion.findById(discussionId);
+  if(!discussion){
+    throw new ApiError(404,'Discussion not found')
+  }
+  discussion.comments.push({
+    comment,
+    commentBy:user._id
+  })
+  await discussion.save();
+  return res.send(new ApiResponse(200,'Comment added successfully',{discussion}))
 })
 
 export {
@@ -288,5 +311,6 @@ export {
     getAllEvents,
     CreateCommunityPost,
     getCommunityPost,
-    LikeUnlikeDiscussion
+    LikeUnlikeDiscussion,
+    CommentOnDiscussion
 }
