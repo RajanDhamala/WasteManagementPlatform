@@ -214,53 +214,81 @@ const CommunityDiscussion = () => {
     }
   }, [DiscussionPost]);
 
-  const renderComments = (discussionId, comments, level = 0) => {
-    return Object.entries(comments || {}).map(([commentId, comment]) => (
-      <div key={commentId} className={`flex items-start gap-3 ${level > 0 ? 'ml-8' : ''}`}>
+  const renderComments = (discussionId, comments = [], level = 0) => {
+    return comments.map((comment) => (
+      <motion.div 
+        key={comment.commentID || comment.replyID} 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={`flex items-start gap-3 ${level > 0 ? 'ml-8 mt-3' : 'mt-4'}`}
+      >
         <Avatar className="w-8 h-8 border border-green-200">
-          <AvatarImage src={comment.userImage} alt={comment.userName} />
-          <AvatarFallback className="text-xs bg-green-100 text-green-800">{comment.userName?.charAt(0)?.toUpperCase() || 'U'}</AvatarFallback>
+          <AvatarImage 
+            src={comment.commenter?.profileImage || comment.repliedBy?.profileImage} 
+            alt={comment.commenter?.name || comment.repliedBy?.name} 
+          />
+          <AvatarFallback className="text-xs bg-green-100 text-green-800">
+            {(comment.commenter?.name || comment.repliedBy?.name)?.charAt(0)?.toUpperCase() || 'U'}
+          </AvatarFallback>
         </Avatar>
         <div className="flex-1 bg-green-50 rounded-lg p-3">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-green-800">{comment.userName}</p>
-            <p className="text-xs text-green-600 opacity-70">{formatDate(comment.date)}</p>
+            <p className="text-sm font-medium text-green-800">
+              {comment.commenter?.name || comment.repliedBy?.name}
+            </p>
+            <p className="text-xs text-green-600 opacity-70">
+              {formatDate(comment.commentDate || comment.replyDate)}
+            </p>
           </div>
-          <p className="text-sm text-green-900 mt-1">{comment.content}</p>
-          <div className="mt-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-green-700 hover:bg-green-100"
-              onClick={() => toggleReplyInput(discussionId, commentId)}
-            >
-              <MessageSquare className="w-4 h-4 mr-1" />
-              Reply
-            </Button>
-          </div>
-          {showReplyInput[`${discussionId}-${commentId}`] && (
+          <p className="text-sm text-green-900 mt-1">
+            {comment.comment || comment.reply}
+          </p>
+          
+          {/* Show reply button only for main comments, not replies */}
+          {!comment.replyID && (
+            <div className="mt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-green-700 hover:bg-green-100"
+                onClick={() => toggleReplyInput(discussionId, comment.commentID)}
+              >
+                <MessageSquare className="w-4 h-4 mr-1" />
+                Reply
+              </Button>
+            </div>
+          )}
+
+          {/* Reply input field */}
+          {showReplyInput[`${discussionId}-${comment.commentID}`] && (
             <div className="mt-2 flex items-center gap-2">
               <Textarea
                 placeholder="Type your reply..."
                 className="resize-none border-green-200 focus:ring-green-500 focus:border-green-500"
-                value={newReplies[discussionId]?.[commentId] || ''}
+                value={newReplies[discussionId]?.[comment.commentID] || ''}
                 onChange={(e) => setNewReplies(prev => ({
                   ...prev,
-                  [discussionId]: { ...prev[discussionId], [commentId]: e.target.value }
+                  [discussionId]: { ...prev[discussionId], [comment.commentID]: e.target.value }
                 }))}
               />
               <Button
-                onClick={() => handlePostReply(discussionId, commentId)}
-                disabled={postReplyMutation.isLoading || !newReplies[discussionId]?.[commentId]?.trim()}
+                onClick={() => handlePostReply(discussionId, comment.commentID)}
+                disabled={!newReplies[discussionId]?.[comment.commentID]?.trim()}
                 className="bg-green-600 hover:bg-green-700 text-white"
               >
                 <Send className="w-4 h-4" />
               </Button>
             </div>
           )}
-          {comment.replies && renderComments(discussionId, comment.replies, level + 1)}
+
+          {/* Render replies if they exist */}
+          {comment.replies?.length > 0 && (
+            <div className="mt-3 space-y-3">
+              {renderComments(discussionId, comment.replies, level + 1)}
+            </div>
+          )}
         </div>
-      </div>
+      </motion.div>
     ));
   };
 

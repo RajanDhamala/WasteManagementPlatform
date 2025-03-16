@@ -187,6 +187,7 @@ const getCommunityPost = asyncHandler(async (req, res) => {
   if (!eventID) {
     throw new ApiError(404, 'Please provide eventID');
   }
+
   let EventPosts;
   if (eventID === 'all') {
     EventPosts = await CommunityDiscussion.aggregate([
@@ -199,15 +200,82 @@ const getCommunityPost = asyncHandler(async (req, res) => {
         },
       },
       { $unwind: { path: '$postedByDetails', preserveNullAndEmptyArrays: true } },
+
+      // Lookup for comments' users
       {
         $lookup: {
           from: 'users',
           localField: 'comments.commentBy',
           foreignField: '_id',
-          as: 'comments.commentByDetails',
+          as: 'commentByDetails',
         },
       },
-      { $unwind: { path: '$comments.commentByDetails', preserveNullAndEmptyArrays: true } },
+
+      // Lookup for replies' users
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'comments.replies.repliedBy',
+          foreignField: '_id',
+          as: 'replyByDetails',
+        },
+      },
+
+      {
+        $addFields: {
+          comments: {
+            $map: {
+              input: '$comments',
+              as: 'comment',
+              in: {
+                commentID: '$$comment.commentID',
+                comment: '$$comment.comment',
+                commentDate: '$$comment.date',
+                commenter: {
+                  name: {
+                    $arrayElemAt: [
+                      '$commentByDetails.name',
+                      { $indexOfArray: ['$commentByDetails._id', '$$comment.commentBy'] }
+                    ]
+                  },
+                  profileImage: {
+                    $arrayElemAt: [
+                      '$commentByDetails.ProfileImage',
+                      { $indexOfArray: ['$commentByDetails._id', '$$comment.commentBy'] }
+                    ]
+                  }
+                },
+                replies: {
+                  $map: {
+                    input: '$$comment.replies',
+                    as: 'reply',
+                    in: {
+                      replyID: '$$reply.replyID',
+                      reply: '$$reply.reply',
+                      replyDate: '$$reply.date',
+                      repliedBy: {
+                        name: {
+                          $arrayElemAt: [
+                            '$replyByDetails.name',
+                            { $indexOfArray: ['$replyByDetails._id', '$$reply.repliedBy'] }
+                          ]
+                        },
+                        profileImage: {
+                          $arrayElemAt: [
+                            '$replyByDetails.ProfileImage',
+                            { $indexOfArray: ['$replyByDetails._id', '$$reply.repliedBy'] }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+
       {
         $project: {
           topic: 1,
@@ -216,13 +284,9 @@ const getCommunityPost = asyncHandler(async (req, res) => {
             ProfileImage: '$postedByDetails.ProfileImage',
             _id: '$postedByDetails._id',
           },
-          comments: {
-            comment: 1,
-            commentBy: '$comments.commentByDetails.name',
-            commentByProfileImage: '$comments.commentByDetails.ProfileImage',
-          },
+          comments: 1,
           date: 1,
-          likesCount: { $size: '$likes' }, 
+          likesCount: { $size: '$likes' },
           EventId: 1,
           hasLiked: userId
             ? { $in: [userId, { $map: { input: '$likes', as: 'like', in: { $toString: '$$like' } } }] }
@@ -233,26 +297,44 @@ const getCommunityPost = asyncHandler(async (req, res) => {
       { $limit: 10 },
     ]).exec();
   } else {
-
     EventPosts = await CommunityDiscussion.find({ EventId: eventID })
       .populate('postedBy', 'name ProfileImage')
       .populate('comments.commentBy', 'name ProfileImage')
+      .populate('comments.replies.repliedBy', 'name ProfileImage')
       .lean();
 
     EventPosts = EventPosts.map((post) => {
-      const hasLiked = post.likes
-        .map((likeId) => likeId.toString()) 
-        .includes(userId); 
+      const hasLiked = post.likes.map((likeId) => likeId.toString()).includes(userId);
       return {
         ...post,
-        hasLiked, 
-        likesCount: post.likes.length, 
+        hasLiked,
+        likesCount: post.likes.length,
+        comments: post.comments.map(comment => ({
+          commentID: comment.commentID,
+          comment: comment.comment,
+          commentDate: comment.date,
+          commenter: {
+            name: comment.commentBy.name,
+            profileImage: comment.commentBy.ProfileImage,
+          },
+          replies: comment.replies.map(reply => ({
+            replyID: reply.replyID,
+            reply: reply.reply,
+            replyDate: reply.date,
+            repliedBy: {
+              name: reply.repliedBy.name,
+              profileImage: reply.repliedBy.ProfileImage,
+            }
+          }))
+        })),
       };
     });
   }
 
   return res.send(new ApiResponse(200, 'Successfully fetched data', EventPosts));
 });
+
+
 
 
 const LikeUnlikeDiscussion = asyncHandler(async (req, res) => {
@@ -304,6 +386,95 @@ const CommentOnDiscussion=asyncHandler(async(req,res)=>{
   return res.send(new ApiResponse(200,'Comment added successfully',{discussion}))
 })
 
+
+const ReplyonComment = asyncHandler(async (req, res) => {
+    const user = req.user;
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    const { discussionId, parentCommentId, content } = req.body;
+    if (!discussionId || !parentCommentId || !content) {
+        throw new ApiError(400, "Please provide discussionId, parentCommentId, and reply content");
+    }
+
+    const discussion = await CommunityDiscussion.findById(discussionId);
+    if (!discussion) {
+        throw new ApiError(404, "Discussion not found");
+    }
+
+    const isSame=discussion.comments.find(comment=>comment.commentID.toString()===parentCommentId.toString())
+    if(!isSame){
+      throw new ApiError(404,'Comment not found')
+    }
+    discussion.comments.forEach(comment => {
+        if (comment.commentID.toString() === parentCommentId.toString()) {
+            comment.replies.push({
+                reply: content,
+                repliedBy: user._id
+            });
+        }
+    });
+    await discussion.save();
+
+    res.send(new ApiResponse(200, "Reply added successfully", { discussion }));
+});
+
+
+const DeleteDiscussionPost = asyncHandler(async (req, res) => {
+  const user = req.user;
+  const { discussionId } = req.params;
+  if (!user) {
+      throw new ApiError(404, "User not found");
+  }
+
+  if (!discussionId) {
+      throw new ApiError(400, "Please provide discussionId"); 
+  }
+
+  const discussion = await CommunityDiscussion.findById(discussionId);
+  if (!discussion) {
+      throw new ApiError(404, "Discussion not found");
+  }
+
+  if (discussion.postedBy.toString() === user._id.toString()) {
+      await CommunityDiscussion.deleteOne({ _id: discussionId }); 
+      return res.send(new ApiResponse(200, "Discussion deleted successfully"));
+  } else {
+      throw new ApiError(403, "You are not authorized to delete this discussion");
+  }
+});
+
+
+const DeleteDiscussionComment = asyncHandler(async (req, res) => {
+  const user = req.user;
+  const { discussionId, commentId } = req.params;
+  if (!user) {
+      throw new ApiError(404, "User not found");
+  }
+  if (!discussionId || !commentId) {
+      throw new ApiError(400, "Please provide discussionId and commentId in request");
+  }
+
+  const postDocument = await CommunityDiscussion.findById(discussionId);
+  if (!postDocument) {
+      throw new ApiError(404, "Discussion not found");
+  }
+  const commentIndex = postDocument.comments.findIndex(
+      (c) => c._id.toString() === commentId && c.commentBy.toString() === user._id.toString()
+  );
+
+  if (commentIndex === -1) {
+      throw new ApiError(403, "Comment not found or you are not the owner");
+  }
+  postDocument.comments.splice(commentIndex, 1);
+  await postDocument.save();
+  res.send(new ApiResponse(200, "Comment deleted successfully", { discussion: postDocument }));
+});
+
+
+
+
 export {
     UserRanking,
     postData,
@@ -312,5 +483,8 @@ export {
     CreateCommunityPost,
     getCommunityPost,
     LikeUnlikeDiscussion,
-    CommentOnDiscussion
+    CommentOnDiscussion,
+    ReplyonComment,
+    DeleteDiscussionPost,
+    DeleteDiscussionComment
 }
