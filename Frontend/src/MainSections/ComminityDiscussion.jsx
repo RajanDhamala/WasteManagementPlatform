@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageCircle, Trophy, Users, Heart, Share2, ThumbsUp, Star, MessageSquare, ChevronRight, Calendar, Send, Filter, Search, Leaf, Recycle, Wind, Cloud, Trash2, PlusCircle, MapPin, AlertTriangle } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { MessageCircle, Users, Share2, ThumbsUp, MessageSquare, ChevronRight, Calendar, Send, Leaf, MapPin, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -12,16 +12,24 @@ import { Badge } from '@/components/ui/badge';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import Editdot from '../UtilsCOmps/EditDot';
+import useUserContext from '@/hooks/useUserContext';
 
 const CommunityDiscussion = () => {
   const [activeTab, setActiveTab] = useState('discussions');
   const [selectedEvent, setSelectedEvent] = useState('all');
-  const [newDiscussion, setNewDiscussion] = useState(''); // For new discussion posts
+  const [newDiscussion, setNewDiscussion] = useState('');
   const [showEventSelector, setShowEventSelector] = useState(false);
   const [optimisticLikes, setOptimisticLikes] = useState({});
-  const [newComments, setNewComments] = useState({}); // For comments on discussions
-  const [newReplies, setNewReplies] = useState({}); // For replies
+  const [newComments, setNewComments] = useState({});
+  const [newReplies, setNewReplies] = useState({});
   const [showReplyInput, setShowReplyInput] = useState({});
+  const [showComments, setShowComments] = useState({});
+  const [editDiscussionId, setEditDiscussionId] = useState(null);
+  const [editCommentId, setEditCommentId] = useState(null);
+  const [editContent, setEditContent] = useState('');
+  const {CurrentUser}=useUserContext()
+  console.log(CurrentUser)
 
   const queryClient = useQueryClient();
 
@@ -67,8 +75,6 @@ const CommunityDiscussion = () => {
     onError: (err, discussionId, context) => {
       queryClient.setQueryData(['GetDiscussionPost', selectedEvent], context.prevData);
     },
-    onSuccess: () => {},
-    onSettled: () => {}
   });
 
   const postDiscussionMutation = useMutation({
@@ -90,6 +96,42 @@ const CommunityDiscussion = () => {
     },
   });
 
+  const editDiscussionMutation = useMutation({
+    mutationFn: async ({ id, content }) => {
+      console.log(id)
+      const response = await axios.put(
+        `http://localhost:8000/community/editPost/${id}`,
+        { content,
+         },
+        { withCredentials: true }
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success('Discussion updated successfully!');
+      setEditDiscussionId(null);
+      setEditContent('');
+      FetchPost();
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to update discussion');
+    },
+  });
+
+  const deleteDiscussionMutation = useMutation({
+    mutationFn: async (id) => {
+      const response = await axios.delete(`http://localhost:8000/community/deletePost/${id}`, { withCredentials: true });
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success('Discussion deleted successfully!');
+      FetchPost();
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to delete discussion');
+    },
+  });
+
   const postCommentMutation = useMutation({
     mutationFn: async ({ comment, discussionId }) => {
       const response = await axios.post(
@@ -106,6 +148,44 @@ const CommunityDiscussion = () => {
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || 'Failed to post comment');
+    },
+  });
+
+  const editCommentMutation = useMutation({
+    mutationFn: async ({ discussionId, commentId, comment }) => {
+      const response = await axios.put(
+        `http://localhost:8000/community/editComment/${discussionId}/${commentId}`,
+        { comment },
+        { withCredentials: true }
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success('Comment updated successfully!');
+      setEditCommentId(null);
+      setEditContent('');
+      FetchPost();
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to update comment');
+    },
+  });
+
+  const deleteCommentMutation = useMutation({
+    mutationFn: async ({ discussionId, commentId }) => {
+      const response = await axios.delete(
+        `http://localhost:8000/community/deleteComment/${discussionId}/${commentId}`,
+        { withCredentials: true }
+      );
+      console.log(response.data)
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success('Comment deleted successfully!');
+      FetchPost();
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to delete comment');
     },
   });
 
@@ -140,6 +220,25 @@ const CommunityDiscussion = () => {
     });
   };
 
+  const handleEditDiscussion = (discussionId, currentContent) => {
+    setEditDiscussionId(discussionId);
+    setEditContent(currentContent);
+  };
+
+  const handleSaveEditDiscussion = (discussionId) => {
+    if (!editContent.trim()) {
+      toast.error('Content cannot be empty');
+      return;
+    }
+    editDiscussionMutation.mutate({ id: discussionId, content: editContent });
+  };
+
+  const handleDeleteDiscussion = (discussionId) => {
+    if (window.confirm('Are you sure you want to delete this discussion?')) {
+      deleteDiscussionMutation.mutate(discussionId);
+    }
+  };
+
   const handlePostComment = (discussionId) => {
     const commentContent = newComments[discussionId]?.trim();
     if (!commentContent) {
@@ -150,6 +249,25 @@ const CommunityDiscussion = () => {
       comment: commentContent,
       discussionId,
     });
+  };
+
+  const handleEditComment = (discussionId, commentId, currentComment) => {
+    setEditCommentId(commentId);
+    setEditContent(currentComment);
+  };
+
+  const handleSaveEditComment = (discussionId, commentId) => {
+    if (!editContent.trim()) {
+      toast.error('Comment cannot be empty');
+      return;
+    }
+    editCommentMutation.mutate({ discussionId, commentId, comment: editContent });
+  };
+
+  const handleDeleteComment = (discussionId, commentId) => {
+    if (window.confirm('Are you sure you want to delete this comment?')) {
+      deleteCommentMutation.mutate({ discussionId, commentId });
+    }
   };
 
   const handlePostReply = (discussionId, parentCommentId = null) => {
@@ -176,6 +294,13 @@ const CommunityDiscussion = () => {
     }));
   };
 
+  const toggleComments = (discussionId) => {
+    setShowComments(prev => ({
+      ...prev,
+      [discussionId]: !prev[discussionId]
+    }));
+  };
+
   const filteredDiscussions = selectedEvent === 'all' 
     ? DiscussionPost || [] 
     : (DiscussionPost || []).filter(d => d.EventId === selectedEvent);
@@ -184,17 +309,13 @@ const CommunityDiscussion = () => {
   const leafPattern = { backgroundImage: 'radial-gradient(rgba(74, 222, 128, 0.05) 2px, transparent 2px)', backgroundSize: '30px 30px' };
 
   const formatDate = (dateString) => {
-    // Check if dateString is valid
     if (!dateString || typeof dateString !== 'string') {
-      return 'Invalid Date'; // Fallback for invalid or missing dates
+      return 'Invalid Date';
     }
-  
     const date = new Date(dateString);
-    // Check if the date is valid after parsing
     if (isNaN(date.getTime())) {
-      return 'Invalid Date'; // Fallback for unparsable dates
+      return 'Invalid Date';
     }
-  
     return new Intl.DateTimeFormat('en-US', {
       day: 'numeric',
       month: 'short',
@@ -203,7 +324,7 @@ const CommunityDiscussion = () => {
       minute: '2-digit'
     }).format(date);
   };
-  
+
   useEffect(() => {
     if (DiscussionPost?.length > 0) {
       const initialLikes = {};
@@ -220,7 +341,7 @@ const CommunityDiscussion = () => {
         key={comment.commentID || comment.replyID} 
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`flex items-start gap-3 ${level > 0 ? 'ml-8 mt-3' : 'mt-4'}`}
+        className={`flex items-start gap-3 ${level > 0 ? 'ml-10 mt-3 border-l-2 border-green-200 pl-4' : 'mt-4'} ${level === 0 ? 'bg-green-50' : 'bg-green-100'} rounded-lg p-3 shadow-sm border border-green-100`}
       >
         <Avatar className="w-8 h-8 border border-green-200">
           <AvatarImage 
@@ -231,20 +352,50 @@ const CommunityDiscussion = () => {
             {(comment.commenter?.name || comment.repliedBy?.name)?.charAt(0)?.toUpperCase() || 'U'}
           </AvatarFallback>
         </Avatar>
-        <div className="flex-1 bg-green-50 rounded-lg p-3">
+        <div className="flex-1">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-green-800">
               {comment.commenter?.name || comment.repliedBy?.name}
             </p>
-            <p className="text-xs text-green-600 opacity-70">
-              {formatDate(comment.commentDate || comment.replyDate)}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-green-600 opacity-70">
+                {formatDate(comment.commentDate || comment.replyDate)}
+              </p>
+              {!comment.replyID && (
+                <Editdot 
+                  onEdit={() => handleEditComment(discussionId, comment.commentID, comment.comment)}
+                  onDelete={() => handleDeleteComment(discussionId, comment.commentID)}
+                />
+              )}
+            </div>
           </div>
-          <p className="text-sm text-green-900 mt-1">
-            {comment.comment || comment.reply}
-          </p>
+          {editCommentId === comment.commentID ? (
+            <div className="mt-2 flex items-center gap-2">
+              <Textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                className="resize-none border-green-200 focus:ring-green-500 focus:border-green-500 text-sm"
+              />
+              <Button
+                onClick={() => handleSaveEditComment(discussionId, comment.commentID)}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                Save
+              </Button>
+              <Button
+                onClick={() => setEditCommentId(null)}
+                variant="outline"
+                className="text-green-700 border-green-200 hover:bg-green-50"
+              >
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <p className="text-sm text-green-900 mt-1">
+              {comment.comment || comment.reply}
+            </p>
+          )}
           
-          {/* Show reply button only for main comments, not replies */}
           {!comment.replyID && (
             <div className="mt-2">
               <Button
@@ -259,12 +410,11 @@ const CommunityDiscussion = () => {
             </div>
           )}
 
-          {/* Reply input field */}
           {showReplyInput[`${discussionId}-${comment.commentID}`] && (
             <div className="mt-2 flex items-center gap-2">
               <Textarea
                 placeholder="Type your reply..."
-                className="resize-none border-green-200 focus:ring-green-500 focus:border-green-500"
+                className="resize-none border-green-200 focus:ring-green-500 focus:border-green-500 text-sm"
                 value={newReplies[discussionId]?.[comment.commentID] || ''}
                 onChange={(e) => setNewReplies(prev => ({
                   ...prev,
@@ -281,7 +431,6 @@ const CommunityDiscussion = () => {
             </div>
           )}
 
-          {/* Render replies if they exist */}
           {comment.replies?.length > 0 && (
             <div className="mt-3 space-y-3">
               {renderComments(discussionId, comment.replies, level + 1)}
@@ -488,11 +637,40 @@ const CommunityDiscussion = () => {
                                 <p className="font-medium text-green-800">{discussion.postedBy?.name}</p>
                                 <p className="text-sm text-green-600 opacity-70">{formatDate(discussion.date)}</p>
                               </div>
-                              {discussion.EventId && (
-                                <Badge className="bg-green-100 text-green-700">{eventsData?.data?.events?.find(e => e._id === discussion.EventId)?.title || 'Event'}</Badge>
-                              )}
+                              <div className="flex items-center gap-2">
+                                {discussion.EventId && (
+                                  <Badge className="bg-green-100 text-green-700">{eventsData?.data?.events?.find(e => e._id === discussion.EventId)?.title || 'Event'}</Badge>
+                                )}
+                                <Editdot 
+                                  onEdit={() => handleEditDiscussion(discussion._id, discussion.topic)}
+                                  onDelete={() => handleDeleteDiscussion(discussion._id)}
+                                />
+                              </div>
                             </div>
-                            <p className="mt-3 text-green-900 whitespace-pre-wrap">{discussion.topic}</p>
+                            {editDiscussionId === discussion._id ? (
+                              <div className="mt-3 flex items-center gap-2">
+                                <Textarea
+                                  value={editContent}
+                                  onChange={(e) => setEditContent(e.target.value)}
+                                  className="resize-none border-green-200 focus:ring-green-500 focus:border-green-500"
+                                />
+                                <Button
+                                  onClick={() => handleSaveEditDiscussion(discussion._id)}
+                                  className="bg-green-600 hover:bg-green-700 text-white"
+                                >
+                                  Save
+                                </Button>
+                                <Button
+                                  onClick={() => setEditDiscussionId(null)}
+                                  variant="outline"
+                                  className="text-green-700 border-green-200 hover:bg-green-50"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            ) : (
+                              <p className="mt-3 text-green-900 whitespace-pre-wrap">{discussion.topic}</p>
+                            )}
                             <div className="mt-4 flex items-center gap-4">
                               <Button 
                                 variant="ghost" 
@@ -504,9 +682,15 @@ const CommunityDiscussion = () => {
                                 <ThumbsUp className={`w-4 h-4 transition-colors ${optimisticLikes[discussion._id]?.hasLiked ? 'fill-green-600 text-green-600' : 'text-gray-400'}`} />
                                 <span className={`${optimisticLikes[discussion._id]?.hasLiked ? 'text-green-700' : 'text-gray-600'}`}>{optimisticLikes[discussion._id]?.likesCount || 0}</span>
                               </Button>
-                              <Button variant="ghost" size="sm" className="text-green-700 hover:bg-green-50">
-                                <MessageSquare className="w-4 h-4 mr-1" />
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="text-green-700 hover:bg-green-50 flex items-center gap-2"
+                                onClick={() => toggleComments(discussion._id)}
+                              >
+                                <MessageSquare className="w-4 h-4" />
                                 {Object.keys(discussion.comments || {}).length}
+                                {showComments[discussion._id] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                               </Button>
                               <Button variant="ghost" size="sm" className="text-green-700 hover:bg-green-50">
                                 <Share2 className="w-4 h-4 mr-1" />
@@ -514,24 +698,31 @@ const CommunityDiscussion = () => {
                               </Button>
                             </div>
 
-                            <div className="mt-4 space-y-3 pt-4 border-t border-green-100">
-                              {renderComments(discussion._id, discussion.comments)}
-                              <div className="flex items-center gap-2 mt-4">
-                                <Textarea
-                                  placeholder="Add a comment..."
-                                  className="resize-none border-green-200 focus:ring-green-500 focus:border-green-500"
-                                  value={newComments[discussion._id] || ''}
-                                  onChange={(e) => setNewComments(prev => ({ ...prev, [discussion._id]: e.target.value }))}
-                                />
-                                <Button
-                                  onClick={() => handlePostComment(discussion._id)}
-                                  disabled={postCommentMutation.isLoading || !newComments[discussion._id]?.trim()}
-                                  className="bg-green-600 hover:bg-green-700 text-white"
-                                >
-                                  <Send className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </div>
+                            {showComments[discussion._id] && (
+                              <motion.div 
+                                initial={{ height: 0, opacity: 0 }} 
+                                animate={{ height: 'auto', opacity: 1 }} 
+                                exit={{ height: 0, opacity: 0 }}
+                                className="mt-4 space-y-3 pt-4 border-t border-green-100"
+                              >
+                                {renderComments(discussion._id, discussion.comments)}
+                                <div className="flex items-center gap-2 mt-4">
+                                  <Textarea
+                                    placeholder="Add a comment..."
+                                    className="resize-none border-green-200 focus:ring-green-500 focus:border-green-500 text-sm"
+                                    value={newComments[discussion._id] || ''}
+                                    onChange={(e) => setNewComments(prev => ({ ...prev, [discussion._id]: e.target.value }))}
+                                  />
+                                  <Button
+                                    onClick={() => handlePostComment(discussion._id)}
+                                    disabled={postCommentMutation.isLoading || !newComments[discussion._id]?.trim()}
+                                    className="bg-green-600 hover:bg-green-700 text-white"
+                                  >
+                                    <Send className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </motion.div>
+                            )}
                           </div>
                         </div>
                       </CardContent>

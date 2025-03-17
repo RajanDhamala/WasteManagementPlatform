@@ -6,7 +6,7 @@ import ApiError from '../Utils/ApiError.js'
 import Event from '../Schema/Event.js'
 import { Redisclient } from '../Utils/RedisUtil.js'
 import CommunityDiscussion from '../Schema/CommunityDiscussion.js'
-import mongoose from 'mongoose'
+
 
 
 const UserRanking=asyncHandler(async(req,res)=>{
@@ -445,34 +445,82 @@ const DeleteDiscussionPost = asyncHandler(async (req, res) => {
   }
 });
 
-
 const DeleteDiscussionComment = asyncHandler(async (req, res) => {
   const user = req.user;
   const { discussionId, commentId } = req.params;
-  if (!user) {
-      throw new ApiError(404, "User not found");
-  }
-  if (!discussionId || !commentId) {
-      throw new ApiError(400, "Please provide discussionId and commentId in request");
-  }
+
+  if (!user) throw new ApiError(404, "User not found");
+  if (!discussionId || !commentId) throw new ApiError(400, "Please provide discussionId and commentId");
 
   const postDocument = await CommunityDiscussion.findById(discussionId);
-  if (!postDocument) {
-      throw new ApiError(404, "Discussion not found");
-  }
-  const commentIndex = postDocument.comments.findIndex(
-      (c) => c._id.toString() === commentId && c.commentBy.toString() === user._id.toString()
-  );
+  if (!postDocument) throw new ApiError(404, "Discussion not found");
 
+  const commentIndex = postDocument.comments.findIndex((c) => {
+    console.log("Checking comment:", c.commentID?.toString(), "by", c.commentBy.toString());
+    return c.commentID?.toString() === commentId.toString() && c.commentBy.toString() === user._id.toString();
+  });
   if (commentIndex === -1) {
-      throw new ApiError(403, "Comment not found or you are not the owner");
+    throw new ApiError(403, "Comment not found or you are not the owner");
   }
+
   postDocument.comments.splice(commentIndex, 1);
   await postDocument.save();
+
   res.send(new ApiResponse(200, "Comment deleted successfully", { discussion: postDocument }));
 });
 
 
+const EditDiscussionPost=asyncHandler(async(req,res)=>{
+  const user=req.user;
+  const {content}=req.body
+  const {id}=req.params
+
+  if(!user){
+    throw new ApiError(200,'user not available in token')
+  }
+  console.log(id)
+  if(!id || !content){
+    throw new ApiError(200,'please send all the deatils')
+  }
+  const existingDiscussion = await CommunityDiscussion.findOne({ _id: id }).populate('postedBy');
+
+  console.log(existingDiscussion)
+  if(!existingDiscussion){
+    throw new ApiError(200,'the discussion doenot exist sorry')
+  }
+  
+  if(existingDiscussion.postedBy._id.toString()==user._id){
+   existingDiscussion.topic=content;
+    await existingDiscussion.save()
+  }
+  res.send(new ApiResponse(400,'comment edited successfully',{}))
+})
+
+const EditDiscussionComment = asyncHandler(async (req, res) => {
+  const user = req.user;
+  const { discussionId, reqId } = req.params; 
+  const { comment } = req.body;
+
+  if (!user) throw new ApiError(400, "Please include user in cookies");
+  if (!discussionId || !reqId) throw new ApiError(400, "Please include discussion ID and comment ID");
+  if (!comment) throw new ApiError(401, "Please include a new comment");
+
+  const document = await CommunityDiscussion.findById(discussionId);
+  if (!document) throw new ApiError(404, "Discussion not found in database");
+
+  const commentIndex = document.comments.findIndex((c) => {
+    return c.commentID.toString() === reqId.toString() && c.commentBy.toString() === user._id.toString();
+  });
+
+  if (commentIndex === -1) {
+    throw new ApiError(403, "Comment not found or you are not the owner");
+  }
+
+  document.comments[commentIndex].comment = comment;
+  await document.save();
+
+  res.send(new ApiResponse(200, "Comment edited successfully", { discussion: document }));
+});
 
 
 export {
@@ -486,5 +534,7 @@ export {
     CommentOnDiscussion,
     ReplyonComment,
     DeleteDiscussionPost,
-    DeleteDiscussionComment
+    DeleteDiscussionComment,
+    EditDiscussionPost,
+    EditDiscussionComment
 }

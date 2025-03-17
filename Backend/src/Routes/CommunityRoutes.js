@@ -1,6 +1,6 @@
 import express from 'express';
 import AuthMiddleware from '../Middleware/JwtMiddleware.js';
-import { UserRanking,postData,getData,getAllEvents,CreateCommunityPost,getCommunityPost,LikeUnlikeDiscussion,CommentOnDiscussion,ReplyonComment,DeleteDiscussionComment,DeleteDiscussionPost } from '../Controller/ComminityController.js';
+import { UserRanking,postData,getData,getAllEvents,CreateCommunityPost,getCommunityPost,LikeUnlikeDiscussion,CommentOnDiscussion,ReplyonComment,DeleteDiscussionComment,DeleteDiscussionPost,EditDiscussionPost,EditDiscussionComment } from '../Controller/ComminityController.js';
 
 const CommunityRoute=express.Router();
 
@@ -23,9 +23,13 @@ CommunityRoute.post('/commentOnDiscussion',AuthMiddleware,CommentOnDiscussion)
 
 CommunityRoute.post('/postReply',AuthMiddleware,ReplyonComment)
 
-CommunityRoute.delete('/deletePost',AuthMiddleware,DeleteDiscussionPost)
+CommunityRoute.delete('/deletePost/:discussionId',AuthMiddleware,DeleteDiscussionPost)
 
-CommunityRoute.delete('/deleteComment',AuthMiddleware,DeleteDiscussionComment)
+CommunityRoute.delete('/deleteComment/:discussionId/:commentId',AuthMiddleware,DeleteDiscussionComment)
+
+CommunityRoute.put('/editPost/:id',AuthMiddleware,EditDiscussionPost)
+
+CommunityRoute.put('/editComment/:discussionId/:reqId',AuthMiddleware,EditDiscussionComment)
 
 
 export default CommunityRoute;
