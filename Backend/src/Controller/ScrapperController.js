@@ -6,6 +6,7 @@ import * as cheerio from "cheerio";
 import Book from '../Schema/Book.js' 
 import puppeteer, { ConsoleMessage } from "puppeteer";
 import fs from 'fs';
+import {Redisclient} from '../Utils/RedisUtil.js'
 
 
 dotenv.config()
@@ -120,68 +121,58 @@ const readCache = () => {
   return {}; 
 };
 
+const scrapeWebsite = async (url) => {
+  try {
+    const response = await axios.get(url);
+    console.log('Scraped content:', response.data);
+
+    const $ = cheerio.load(response.data);
+    const news = [];
+    $('.content-list.content-list--two-column div.media-object').each((index, item) => {
+      if (index >= 20) return false; 
+
+      const titleElement = $(item).find('h6.list-object__heading a.h6__link.list-object__heading-link');
+      const titleLink = 'https://www.channelnewsasia.com/' + titleElement.attr('href');
+      const field = $(item).find('p.list-object__category a.link').text().trim();
+      const time = $(item).find('div.list-object__datetime-duration span.timestamp.timeago').attr('data-lastupdated');
+      const Img = $(item).find('picture.image img.image').attr('src');
+      const title = titleElement.text().trim();
+
+      console.log('Category:', field, 'Title:', title, 'Link:', titleLink, 'Time:', time, 'Img:', Img);
+      news.push({ title, field, titleLink, time, Img });
+    });
+    return news;
+  } catch (error) {
+    console.error('Error scraping the website:', error);
+    throw new Error('Error scraping the website');
+  }
+};
+
 const ScrapNews = asyncHandler(async (req, res) => {
-  const { scrap } = req.query; 
+  const { scrap } = req.query;
   console.log("Scrap:", scrap);
 
-  const url = process.env.NEWS_URL; 
+  const url = process.env.NEWS_URL;
   console.log('Scraping URL:', url);
 
-
-  let cache = readCache();
+  let cachedData = await Redisclient.json.get('ScrappedNews', '$'); 
 
   if (scrap === 'true') {
     console.log('Scrap is true, fetching new data...');
-    try {
-      const response = await axios.get(url);
-      console.log('Scraped content:', response.data);
-      
-      cache[url] = response.data;
-      saveCache(cache);
-      return res.send(new ApiResponse(200, 'Successfully scraped website', {}));
-    } catch (error) {
-      console.error('Error scraping the website:', error);
-      return res.status(500).send(new ApiResponse(500, 'Error scraping the website', {}));
-    }
+    const news = await scrapeWebsite(url);
+    await Redisclient.json.set('ScrappedNews', '$',(news));
+    return res.send(new ApiResponse(200, 'Successfully scraped website', {}));
   } else {
-    if (cache[url]) {
-      console.log('Using cached content for:', url);
-      const cachedData = cache[url];
-
-      const $ = cheerio.load(cachedData);
-      const news = [];
-
-      $('.content-list.content-list--two-column div.media-object').each((index, item) => {
-        if (index >= 20) return false; 
-
-        const titleElement = $(item).find('h6.list-object__heading a.h6__link.list-object__heading-link');
-        const titleLink = 'https://www.channelnewsasia.com/' + titleElement.attr('href');
-        const field = $(item).find('p.list-object__category a.link').text().trim();
-        const time = $(item).find('div.list-object__datetime-duration span.timestamp.timeago').attr('data-lastupdated');
-        const Img = $(item).find('picture.image img.image').attr('src');
-        const title = titleElement.text().trim();
-
-        console.log('Category:', field, 'Title:', title, 'Link:', titleLink, 'Time:', time, 'Img:', Img);
-        news.push({ title, field, titleLink, time, Img });
-      });
-
-      return res.send(new ApiResponse(200, 'Using cached content', { news }));
+    if (cachedData) {
+      console.log('Using cached content from Redis:', url);
+      return res.send(new ApiResponse(200, 'Using cached content', { news: cachedData }));
     }
-
-    try {
-      const response = await axios.get(url);
-      console.log('Scraped content:', response.data);
-
-      cache[url] = response.data;
-      saveCache(cache);
-
-      return res.send(new ApiResponse(200, 'Successfully scraped website', {}));
-    } catch (error) {
-      console.error('Error scraping the website:', error);
-      return res.status(500).send(new ApiResponse(500, 'Error scraping the website', {}));
-    }
+    const news = await scrapeWebsite(url);
+    await Redisclient.json.set('ScrappedNews', '$', (news));
+    return res.send(new ApiResponse(200, 'Successfully scraped website', {}));
   }
 });
+
 
 const Crawling = asyncHandler(async (req, res) => {
   console.log("Crawling booss rn...");

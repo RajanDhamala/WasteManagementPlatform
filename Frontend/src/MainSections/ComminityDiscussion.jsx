@@ -31,6 +31,7 @@ const CommunityDiscussion = () => {
   const {CurrentUser}=useUserContext()
   console.log(CurrentUser)
 
+
   const queryClient = useQueryClient();
 
   const fetchEvents = async () => {
@@ -361,7 +362,7 @@ const CommunityDiscussion = () => {
               <p className="text-xs text-green-600 opacity-70">
                 {formatDate(comment.commentDate || comment.replyDate)}
               </p>
-              {!comment.replyID && (
+              {comment.commenter?.name==CurrentUser.name && (
                 <Editdot 
                   onEdit={() => handleEditComment(discussionId, comment.commentID, comment.comment)}
                   onDelete={() => handleDeleteComment(discussionId, comment.commentID)}
@@ -519,7 +520,7 @@ const CommunityDiscussion = () => {
               <CardContent className="pt-6">
                 <div className="flex items-start space-x-3">
                   <Avatar className="border-2 border-green-200">
-                    <AvatarImage src="/api/placeholder/100/100" />
+                    <AvatarImage src={CurrentUser.ProfileImage || ''} />
                     <AvatarFallback className="bg-green-100 text-green-800">YP</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 space-y-3">
@@ -641,10 +642,12 @@ const CommunityDiscussion = () => {
                                 {discussion.EventId && (
                                   <Badge className="bg-green-100 text-green-700">{eventsData?.data?.events?.find(e => e._id === discussion.EventId)?.title || 'Event'}</Badge>
                                 )}
-                                <Editdot 
+                                {discussion.postedBy._id==CurrentUser._id?
+                                  <Editdot 
                                   onEdit={() => handleEditDiscussion(discussion._id, discussion.topic)}
                                   onDelete={() => handleDeleteDiscussion(discussion._id)}
-                                />
+                                />:null
+                                }
                               </div>
                             </div>
                             {editDiscussionId === discussion._id ? (

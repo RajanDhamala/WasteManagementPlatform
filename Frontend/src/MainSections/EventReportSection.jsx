@@ -2,22 +2,156 @@ import React, { useState } from 'react';
 import { Calendar, Clock, MapPin, Users, User, MessageSquare, Image, MessageCircle, ThumbsUp, Send } from 'lucide-react';
 import useUserContext from '@/hooks/useUserContext';
 import { useParams } from "react-router-dom";
-import { use } from 'react';
-
-function Profile() {
-  let { id } = useParams(); // Get the "id" from the URL
-  return <h1>Profile ID: {id}</h1>;
-}
-
+import axios from 'axios'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 const EventReportSection = () => {
+  let { title } = useParams();
   const [newComment, setNewComment] = useState('');
+  const [newDiscussion, setNewDiscussion] = useState('');
   const [selectedImage, setSelectedImage] = useState(null);
+  const [newReplies, setNewReplies] = useState({});
+  const [showReplyInput, setShowReplyInput] = useState({});
 
-  const {CurrentUser}=useUserContext()
+  const { CurrentUser } = useUserContext();
+  const queryClient = useQueryClient();
+  const Navigate = useNavigate();
 
-  let {title}=useParams()  
-  console.log(title)
+  const handleRouting = () => {
+    Navigate(`/events/${title}`);
+  };
+
+  const FetchReport = async () => {
+    const response = await axios.get(`http://localhost:8000/report/final/${title}`, { withCredentials: true });
+    return response.data.data;
+  };
+
+  const FetchPost = async () => {
+    const response = await axios.get(`http://localhost:8000/community/post/${title}`, { withCredentials: true });
+    return response.data.data;
+  };
+
+  const LikeDislikeDiscussion = async (discussionId) => {
+    const response = await axios.post(
+      `http://localhost:8000/community/like/${discussionId}`,
+      {},
+      { withCredentials: true }
+    );
+    return response.data;
+  };
+
+  const { data: eventReport, isLoading, isError } = useQuery({
+    queryKey: ['EventReport', title],
+    queryFn: FetchReport
+  });
+
+  const postReplyMutation = useMutation({
+    mutationFn: async ({ discussionId, content, parentCommentId }) => {
+      const response = await axios.post(
+        'http://localhost:8000/community/postReply',
+        { discussionId, content, parentCommentId },
+        { withCredentials: true }
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success('Reply posted successfully!');
+      setNewReplies({});
+      setShowReplyInput({});
+      queryClient.invalidateQueries(['EventReport', title]);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to post reply');
+    },
+  });
+
+  const postDiscussionMutation = useMutation({
+    mutationFn: async ({ content, eventId }) => {
+      const response = await axios.post(
+        'http://localhost:8000/community/postTopic',
+        { content, eventId: eventId === 'all' ? null : eventId },
+        { withCredentials: true }
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success('Discussion posted successfully!');
+      setNewDiscussion('');
+      queryClient.invalidateQueries(['EventReport', title]);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to post discussion');
+    },
+  });
+
+  const LikeUnlike = useMutation({
+    mutationFn: LikeDislikeDiscussion,
+    onMutate: async (discussionId) => {
+      const prevData = queryClient.getQueryData(['EventReport', title]);
+      queryClient.setQueryData(['EventReport', title], (oldData) => {
+        return {
+          ...oldData,
+          communityPosts: oldData.communityPosts.map(discussion => {
+            if (discussion._id === discussionId) {
+              return {
+                ...discussion,
+                hasLiked: !discussion.hasLiked,
+                likesCount: discussion.likesCount + (discussion.hasLiked ? -1 : 1)
+              };
+            }
+            return discussion;
+          })
+        };
+      });
+      return { prevData };
+    },
+    onError: (err, discussionId, context) => {
+      queryClient.setQueryData(['EventReport', title], context.prevData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['EventReport', title]);
+    }
+  });
+
+  const handleCommentSubmit = (e) => {
+    e.preventDefault();
+    postDiscussionMutation.mutate({
+      content: newComment,
+      eventId: title
+    });
+    setNewComment('');
+  };
+
+  const handleReplySubmit = (e, discussionId) => {
+    e.preventDefault();
+    postReplyMutation.mutate({
+      discussionId,
+      content: newReplies[discussionId],
+      parentCommentId: null
+    });
+  };
+
+  const toggleReplyInput = (discussionId) => {
+    setShowReplyInput(prev => ({
+      ...prev,
+      [discussionId]: !prev[discussionId]
+    }));
+  };
+
+  const handleLike = (discussionId) => {
+    LikeUnlike.mutate(discussionId);
+  };
+
+  const openImageModal = (image) => {
+    setSelectedImage(image);
+  };
+
+  const closeImageModal = () => {
+    setSelectedImage(null);
+  };
+
   const eventData = {
     title: "Community Park Cleanup",
     hostedBy: "Green City Initiative",
@@ -46,45 +180,6 @@ const EventReportSection = () => {
       { id: 1, type: "before", url: "https://res.cloudinary.com/dy78jnaye/image/upload/f_auto,q_auto/v1/event_images/1739928266678?_a=BAMCkGWM0", caption: "Before the cleanup" },
       { id: 2, type: "after", url: "https://res.cloudinary.com/dy78jnaye/image/upload/f_auto,q_auto/v1/event_images/1739253682201?_a=BAMCkGWM0", caption: "After the cleanup" }
     ],
-    discussions: [
-      { 
-        id: 1, 
-        author: "Emily Wong", 
-        avatar: "https://res.cloudinary.com/dy78jnaye/image/upload/f_auto,q_auto/v1/event_images/1740197865952?_a=BAMCkGWM0",
-        content: "I was amazed by how much we accomplished in just a few hours. Looking forward to the next event!", 
-        timestamp: "2 days ago",
-        likes: 7,
-        replies: [
-          { id: 101, author: "David Miller", avatar: "/api/placeholder/40/40", content: "Agreed! The turnout was impressive.", timestamp: "1 day ago", likes: 2 }
-        ]
-      },
-      { 
-        id: 2, 
-        author: "Robert Chen", 
-        avatar: "https://res.cloudinary.com/dy78jnaye/image/upload/f_auto,q_auto/v1/event_images/1738586871231?_a=BAMCkGWM0",
-        content: "Does anyone have information about the next cleanup? I'd like to bring some friends.", 
-        timestamp: "1 day ago",
-        likes: 4,
-        replies: [
-          { id: 201, author: "Sarah Johnson", avatar: "/api/placeholder/40/40", content: "We're planning another one for next month. I'll post details soon!", timestamp: "1 day ago", likes: 3 }
-        ]
-      }
-    ]
-  };
-
-
-  const handleCommentSubmit = (e) => {
-    e.preventDefault();
-    alert(`Comment submitted: ${newComment}`);
-    setNewComment('');
-  };
-
-  const openImageModal = (image) => {
-    setSelectedImage(image);
-  };
-
-  const closeImageModal = () => {
-    setSelectedImage(null);
   };
 
   return (
@@ -92,7 +187,7 @@ const EventReportSection = () => {
       <div className="max-w-6xl mx-auto p-4 md:p-6">
         {/* Hero section with event title and basic info */}
         <header className="bg-white rounded-xl shadow-md p-6 mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">{eventData.title}</h1>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">{eventReport?.heading.title}</h1>
           <div className="flex flex-wrap items-center gap-4 text-gray-600">
             <div className="flex items-center">
               <User className="h-4 w-4 mr-2" />
@@ -100,11 +195,11 @@ const EventReportSection = () => {
             </div>
             <div className="flex items-center">
               <Calendar className="h-4 w-4 mr-2" />
-              <span>{eventData.date}</span>
+              <span>{eventReport?.heading.date}</span>
             </div>
             <div className="flex items-center">
               <MapPin className="h-4 w-4 mr-2" />
-              <span>{eventData.location}</span>
+              <span>{eventReport?.heading.location}</span>
             </div>
           </div>
         </header>
@@ -142,51 +237,86 @@ const EventReportSection = () => {
                 Community Discussion
               </h2>
               <div className="space-y-6">
-                {eventData.discussions.map(discussion => (
-                  <div key={discussion.id} className="border-l-4 border-blue-100 pl-4">
+                {eventReport?.communityPosts?.map((discussion) => (
+                  <div key={discussion._id} className="border-l-4 border-blue-100 pl-4">
                     <div className="flex items-start gap-3">
-                      <img 
-                        src={discussion.avatar} 
-                        alt={discussion.author} 
+                      <img
+                        src={discussion.postedBy.ProfileImage}
+                        alt={discussion.postedBy.name}
                         className="w-10 h-10 rounded-full"
                       />
                       <div className="flex-1">
                         <div className="flex justify-between items-center">
-                          <h3 className="font-medium">{discussion.author}</h3>
-                          <span className="text-sm text-gray-500">{discussion.timestamp}</span>
+                          <h3 className="font-medium">{discussion.postedBy.name}</h3>
+                          <span className="text-sm text-gray-500">
+                            {new Date(discussion.date).toLocaleString()}
+                          </span>
                         </div>
-                        <p className="mt-1 text-gray-700">{discussion.content}</p>
+                        <p className="mt-1 text-gray-700">{discussion.topic}</p>
                         <div className="mt-2 flex items-center gap-4">
-                          <button className="flex items-center text-gray-500 hover:text-blue-600 text-sm">
+                          <button 
+                            onClick={() => handleLike(discussion._id)}
+                            className="flex items-center text-gray-500 hover:text-blue-600 text-sm"
+                          >
                             <ThumbsUp className="h-4 w-4 mr-1" />
-                            {discussion.likes} Likes
+                            {discussion.likesCount} Likes
                           </button>
-                          <button className="flex items-center text-gray-500 hover:text-blue-600 text-sm">
+                          <button 
+                            onClick={() => toggleReplyInput(discussion._id)}
+                            className="flex items-center text-gray-500 hover:text-blue-600 text-sm"
+                          >
                             <MessageSquare className="h-4 w-4 mr-1" />
                             Reply
                           </button>
                         </div>
-                        
-                        {/* Replies */}
-                        {discussion.replies.length > 0 && (
+
+                        {/* Reply Form */}
+                        {showReplyInput[discussion._id] && (
+                          <form 
+                            onSubmit={(e) => handleReplySubmit(e, discussion._id)} 
+                            className="mt-4 ml-6"
+                          >
+                            <textarea
+                              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-300 focus:border-blue-500 outline-none"
+                              rows="2"
+                              placeholder="Write your reply..."
+                              value={newReplies[discussion._id] || ''}
+                              onChange={(e) => setNewReplies({
+                                ...newReplies,
+                                [discussion._id]: e.target.value
+                              })}
+                            />
+                            <button
+                              type="submit"
+                              className="mt-2 bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700 transition-colors"
+                              disabled={!newReplies[discussion._id]?.trim()}
+                            >
+                              Post Reply
+                            </button>
+                          </form>
+                        )}
+
+                        {/* Comments Section */}
+                        {discussion.comments.length > 0 && (
                           <div className="ml-6 mt-4 space-y-4">
-                            {discussion.replies.map(reply => (
-                              <div key={reply.id} className="flex items-start gap-3">
-                                <img 
-                                  src={reply.avatar} 
-                                  alt={reply.author} 
+                            {discussion.comments.map((comment) => (
+                              <div key={comment.commentID} className="flex items-start gap-3">
+                                <img
+                                  src={comment.commenter.profileImage}
+                                  alt={comment.commenter.name}
                                   className="w-8 h-8 rounded-full"
                                 />
                                 <div className="flex-1">
                                   <div className="flex justify-between items-center">
-                                    <h3 className="font-medium">{reply.author}</h3>
-                                    <span className="text-xs text-gray-500">{reply.timestamp}</span>
+                                    <h3 className="font-medium">{comment.commenter.name}</h3>
+                                    <span className="text-xs text-gray-500">
+                                      {new Date(comment.commentDate).toLocaleString()}
+                                    </span>
                                   </div>
-                                  <p className="mt-1 text-sm text-gray-700">{reply.content}</p>
+                                  <p className="mt-1 text-sm text-gray-700">{comment.comment}</p>
                                   <div className="mt-1">
                                     <button className="flex items-center text-gray-500 hover:text-blue-600 text-xs">
-                                      <ThumbsUp className="h-3 w-3 mr-1" />
-                                      {reply.likes} Likes
+                                      <ThumbsUp className="h-3 w-3 mr-1" /> 0 Likes
                                     </button>
                                   </div>
                                 </div>
@@ -199,7 +329,7 @@ const EventReportSection = () => {
                   </div>
                 ))}
               </div>
-              
+
               {/* Comment form */}
               <form onSubmit={handleCommentSubmit} className="mt-6">
                 <div className="flex items-start gap-3">
@@ -220,10 +350,10 @@ const EventReportSection = () => {
                       <button
                         type="submit"
                         className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-                        disabled={!newComment.trim()}
+                        disabled={!newComment.trim() || postDiscussionMutation.isLoading}
                       >
                         <Send className="h-4 w-4 mr-2" />
-                        Post Comment
+                        Post Discussion
                       </button>
                     </div>
                   </div>
@@ -245,15 +375,15 @@ const EventReportSection = () => {
                   <Clock className="h-4 w-4 text-gray-500 mr-3 mt-1" />
                   <div>
                     <p className="font-medium">Date & Time</p>
-                    <p className="text-gray-600">{eventData.date}</p>
-                    <p className="text-gray-600">{eventData.time}</p>
+                    <p className="text-gray-600">{eventReport?.Eventdetails.date}</p>
+                    <p className="text-gray-600">{eventReport?.Eventdetails.StartTime}-{eventReport?.Eventdetails.EndingTime}</p>
                   </div>
                 </div>
                 <div className="flex items-start">
                   <MapPin className="h-4 w-4 text-gray-500 mr-3 mt-1" />
                   <div>
                     <p className="font-medium">Location</p>
-                    <p className="text-gray-600">{eventData.location}</p>
+                    <p className="text-gray-600">{eventReport?.Eventdetails.Location}</p>
                   </div>
                 </div>
                 <div className="pt-2">
@@ -292,21 +422,24 @@ const EventReportSection = () => {
                 Reviews & Feedback
               </h2>
               <div className="space-y-4">
-                {eventData.reviews.map(review => (
-                  <div key={review.id} className="py-2">
+                {eventReport?.ReviewsAndFeedback.map(review => (
+                  <div key={review.ReviewID} className="py-2">
                     <div className="flex justify-between items-center mb-1">
-                      <span className="font-medium">{review.author}</span>
+                      <span className="font-medium">{review.Reviewer}</span>
                       <div className="flex">
                         {[...Array(5)].map((_, i) => (
-                          <span key={i} className={`text-lg ${i < review.rating ? "text-yellow-500" : "text-gray-300"}`}>★</span>
+                          <span key={i} className={`text-lg ${i < review.Rating ? "text-yellow-500" : "text-gray-300"}`}>★</span>
                         ))}
                       </div>
                     </div>
-                    <p className="text-gray-700 text-sm">{review.comment}</p>
+                    <p className="text-gray-700 text-sm">{review.Review}</p>
                   </div>
                 ))}
                 <div className="pt-2">
-                  <button className="w-full border border-blue-600 text-blue-600 py-2 rounded-lg hover:bg-blue-50 transition-colors">
+                  <button 
+                    className="w-full border border-blue-600 text-blue-600 py-2 rounded-lg hover:bg-blue-50 transition-colors" 
+                    onClick={() => handleRouting()}
+                  >
                     Leave a Review
                   </button>
                 </div>
@@ -314,8 +447,8 @@ const EventReportSection = () => {
             </section>
           </div>
         </div>
-        
-        {/* Gallery section - now at the bottom */}
+
+        {/* Gallery section */}
         <section className="bg-white rounded-xl shadow-md p-6 mt-6">
           <h2 className="text-xl font-semibold mb-4 pb-2 border-b flex items-center">
             <Image className="h-5 w-5 mr-2 text-blue-500" />
