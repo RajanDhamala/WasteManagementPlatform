@@ -160,7 +160,7 @@ const ScrapNews = asyncHandler(async (req, res) => {
   if (scrap === 'true') {
     console.log('Scrap is true, fetching new data...');
     const news = await scrapeWebsite(url);
-    await Redisclient.json.set('ScrappedNews', '$',(news));
+    await Redisclient.json.set('ScrappedNews', '$',{news});
     return res.send(new ApiResponse(200, 'Successfully scraped website', {}));
   } else {
     if (cachedData) {
@@ -168,7 +168,8 @@ const ScrapNews = asyncHandler(async (req, res) => {
       return res.send(new ApiResponse(200, 'Using cached content', { news: cachedData }));
     }
     const news = await scrapeWebsite(url);
-    await Redisclient.json.set('ScrappedNews', '$', (news));
+    console.log(news)
+    await Redisclient.json.set('ScrappedNews', '$', {news});
     return res.send(new ApiResponse(200, 'Successfully scraped website', {}));
   }
 });

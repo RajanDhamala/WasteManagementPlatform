@@ -25,6 +25,7 @@ import Cookies from "js-cookie";
 import ImageComparer from "./AiComponnets/ImageComparer";
 import ChessBoard from "./ChessBoard";
 import AboutUs from "./MainSections/AboutPage";
+import CreateReport from "./MainSections/CreateReport";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -84,6 +85,7 @@ const App = () => {
               <Route path="/compare" element={<ImageComparer />} />
               <Route path="/chess" element={<ChessBoard />} />
               <Route path="/about" element={<AboutUs />} />
+              <Route path='makereport' element={<CreateReport/>}></Route>
             </Routes>
           </Suspense>
         </BrowserRouter>

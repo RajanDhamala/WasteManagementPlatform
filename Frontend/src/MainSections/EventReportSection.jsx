@@ -14,6 +14,7 @@ const EventReportSection = () => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [newReplies, setNewReplies] = useState({});
   const [showReplyInput, setShowReplyInput] = useState({});
+  const [EventID, setEventId] = useState();
 
   const { CurrentUser } = useUserContext();
   const queryClient = useQueryClient();
@@ -25,6 +26,7 @@ const EventReportSection = () => {
 
   const FetchReport = async () => {
     const response = await axios.get(`http://localhost:8000/report/final/${title}`, { withCredentials: true });
+    setEventId(response.data.data.Eventdetails.EventId);
     return response.data.data;
   };
 
@@ -34,8 +36,8 @@ const EventReportSection = () => {
   };
 
   const LikeDislikeDiscussion = async (discussionId) => {
-    const response = await axios.post(
-      `http://localhost:8000/community/like/${discussionId}`,
+    const response = await axios.put(
+      `http://localhost:8000/community/likeUnlikeDiscussion/${discussionId}`,
       {},
       { withCredentials: true }
     );
@@ -48,10 +50,10 @@ const EventReportSection = () => {
   });
 
   const postReplyMutation = useMutation({
-    mutationFn: async ({ discussionId, content, parentCommentId }) => {
+    mutationFn: async ({ discussionId, comment }) => {
       const response = await axios.post(
-        'http://localhost:8000/community/postReply',
-        { discussionId, content, parentCommentId },
+        'http://localhost:8000/community/commentOnDiscussion',
+        { discussionId, comment },
         { withCredentials: true }
       );
       return response.data;
@@ -71,7 +73,7 @@ const EventReportSection = () => {
     mutationFn: async ({ content, eventId }) => {
       const response = await axios.post(
         'http://localhost:8000/community/postTopic',
-        { content, eventId: eventId === 'all' ? null : eventId },
+        { content, eventId: EventID === 'all' ? null : eventId },
         { withCredentials: true }
       );
       return response.data;
@@ -94,6 +96,7 @@ const EventReportSection = () => {
         return {
           ...oldData,
           communityPosts: oldData.communityPosts.map(discussion => {
+            console.log('hello123')
             if (discussion._id === discussionId) {
               return {
                 ...discussion,
@@ -111,7 +114,7 @@ const EventReportSection = () => {
       queryClient.setQueryData(['EventReport', title], context.prevData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['EventReport', title]);
+  
     }
   });
 
@@ -119,7 +122,7 @@ const EventReportSection = () => {
     e.preventDefault();
     postDiscussionMutation.mutate({
       content: newComment,
-      eventId: title
+      eventId: EventID
     });
     setNewComment('');
   };
@@ -128,8 +131,7 @@ const EventReportSection = () => {
     e.preventDefault();
     postReplyMutation.mutate({
       discussionId,
-      content: newReplies[discussionId],
-      parentCommentId: null
+      comment: newReplies[discussionId],
     });
   };
 
@@ -256,7 +258,7 @@ const EventReportSection = () => {
                         <div className="mt-2 flex items-center gap-4">
                           <button 
                             onClick={() => handleLike(discussion._id)}
-                            className="flex items-center text-gray-500 hover:text-blue-600 text-sm"
+                            className={`flex items-center text-sm ${discussion.hasLiked ? 'text-blue-600' : 'text-gray-500 hover:text-blue-600'}`}
                           >
                             <ThumbsUp className="h-4 w-4 mr-1" />
                             {discussion.likesCount} Likes
@@ -314,11 +316,6 @@ const EventReportSection = () => {
                                     </span>
                                   </div>
                                   <p className="mt-1 text-sm text-gray-700">{comment.comment}</p>
-                                  <div className="mt-1">
-                                    <button className="flex items-center text-gray-500 hover:text-blue-600 text-xs">
-                                      <ThumbsUp className="h-3 w-3 mr-1" /> 0 Likes
-                                    </button>
-                                  </div>
                                 </div>
                               </div>
                             ))}

@@ -6,42 +6,30 @@ const EventReportSchema = new mongoose.Schema({
         ref: "Event",
         required: true
     },
-    Title: {
-        type: String,
-        required: true
+    BeforeCleanupImg: 
+        {
+            type: String,
+            default: ""
     },
-    BeforeCleanupImg: [
+    AfterCleanupImg: 
         {
             type: String,
             default: ""
         }
-    ],
-    AfterCleanupImg: [
-        {
-            type: String,
-            default: ""
-        }
-    ],
-    CommunityDiscussions: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "CommunityDiscussion"
-    },
-    ReviewsAndFeedback: {
-        type: mongoose.Schema.Types.ObjectId,  
-        ref: "Review"
-    },
+    ,
     EventGallery: [  
         {
             type: String,
-            default: ""
         }
-    ],
-    Participants: [
+    ],VideoGallary:[
         {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "User"
+            type:String
         }
-    ],
+    ],Particpiants:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:'Particpants'
+    }
+  
 },{timestamps: true});
 
 const EventReport = mongoose.model("EventReport", EventReportSchema);

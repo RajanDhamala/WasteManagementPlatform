@@ -12,9 +12,8 @@ import CommunityDiscussion from '../Schema/CommunityDiscussion.js'
 dotenv.config()
 
 const CreateEventReport = asyncHandler(async (req, res) => {
-    const eventHash = req.params.title // Event hash ID (this could be passed dynamically)
-    const user = req.user;  // Assuming the user is authenticated
-
+    const eventHash = req.params.title 
+    const user = req.user; 
     console.log(eventHash)
 
     if (!user) throw new ApiError(401, 'Please include cookies in request');
@@ -39,16 +38,16 @@ const CreateEventReport = asyncHandler(async (req, res) => {
         StartTime: existingEvent.time,
         EndingTime: '12:00', 
         Location: existingEvent.location,
+        EventId:existingEvent._id
     };
 
-    // Fetch the latest 2 reviews for the event
     const reviews = await Review.aggregate([
         { $match: { Event: existingEvent._id } },
         { $lookup: { from: 'users', localField: 'Reviewer', foreignField: '_id', as: 'Reviewer' } },
         { $unwind: '$Reviewer' },
         { $project: { ReviewID: '$_id', Review: 1, Rating: 1, Reviewer: '$Reviewer.name' } },
         { $sort: { createdAt: -1 } },
-        { $limit: 2 }  // Limit to the top 2 reviews
+        { $limit: 2 }  
     ]);
 
     const ReviewsAndFeedback = reviews.map(({ ReviewID, Review, Rating, Reviewer }) => ({
@@ -58,27 +57,35 @@ const CreateEventReport = asyncHandler(async (req, res) => {
         Reviewer,
     }));
 
-    // Fetch the latest 2 community posts for the event
+   
     let communityPosts = await CommunityDiscussion.find({ EventId: existingEvent._id })
+    .sort({ createdAt: -1 }) 
+    .limit(2)
     .populate('postedBy', 'name ProfileImage')
     .populate('comments.commentBy', 'name ProfileImage')
     .populate('comments.replies.repliedBy', 'name ProfileImage')
-    .lean(); 
+    .lean();
   
-    communityPosts = communityPosts.map((post) => {
-        return {
-          ...post,
-          hasLiked: post.likes.some((likeId) => likeId.toString() === user._id),
-          likesCount: post.likes.length,
-          comments: post.comments.map(comment => ({
-            commentID: comment.commentID,
-            comment: comment.comment,
-            commentDate: comment.date,
-            commenter: {
-              name: comment.commentBy.name,
-              profileImage: comment.commentBy.ProfileImage,
-            },
-            replies: comment.replies.map(reply => ({
+  communityPosts = communityPosts.map((post) => {
+    return {
+      ...post,
+      hasLiked: post.likes.some((likeId) => likeId.toString() === user._id),
+      likesCount: post.likes.length,
+      comments: post.comments
+        .sort((a, b) => new Date(b.date) - new Date(a.date)) 
+        .slice(0, 1) 
+        .map(comment => ({
+          commentID: comment.commentID,
+          comment: comment.comment,
+          commentDate: comment.date,
+          commenter: {
+            name: comment.commentBy.name,
+            profileImage: comment.commentBy.ProfileImage,
+          },
+          replies: comment.replies
+            .sort((a, b) => new Date(b.date) - new Date(a.date))
+            .slice(0, 1) 
+            .map(reply => ({
               replyID: reply.replyID,
               reply: reply.reply,
               replyDate: reply.date,
@@ -87,17 +94,107 @@ const CreateEventReport = asyncHandler(async (req, res) => {
                 profileImage: reply.repliedBy.ProfileImage,
               }
             }))
-          })),
-        };
-      });
-      
-    // Debugging: Check the data coming from the aggregation
+        })),
+    };
+  });
+  
     console.log('Fetched community posts:', communityPosts);
 
     return res.send(new ApiResponse(200, 'Successfully generated the report', { heading, BeforeAfter, Eventdetails, ReviewsAndFeedback, communityPosts }));
 });
 
 
+const BeforeAfter = asyncHandler(async (req, res) => {
+  const files = req.files;
+  const user = req.user;
+  const { eventId:EventId } = req.body;
+
+  if (!user) {
+    throw new ApiError(500, 'User is not included in the request cookies');
+  }
+
+console.log(req.files)
+const beforeImageUrl = files.BeforeImg[0].path; 
+const afterImageUrl = files.AfterImg[0].path; 
+  const updateDb = await EventReport.findOne({ Event: EventId });
+
+  if (updateDb) {
+    updateDb.BeforeCleanupImg = beforeImageUrl;
+    updateDb.AfterCleanupImg = afterImageUrl;
+    await updateDb.save();
+    return res.send(new ApiResponse(200, 'Database updated successfully'));
+  } else {
+    const createHai = new EventReport({
+      Event: EventId,
+      BeforeCleanupImg: beforeImageUrl,
+      AfterCleanupImg: afterImageUrl,
+      EventGallery: [],
+      VideoGallary: []
+    });
+    await createHai.save();
+    return res.send(new ApiResponse(200, 'Document created successfully', createHai));
+  }
+});
+
+const EventGallary = asyncHandler(async (req, res) => {
+  const files = req.files;
+  const user = req.user;
+  const { eventId } = req.body;
+
+  if (!files || !eventId) throw new ApiError(400, "Please include image or eventId in request");
+  if (!user) throw new ApiError(404, "Unauthorized access of uploading data");
+
+  let existingEvent = await EventReport.findOne({ Event: eventId });
+
+  if (!existingEvent) {
+    existingEvent = new EventReport({
+      Event: eventId,
+      BeforeCleanupImg: "",
+      AfterCleanupImg: "",
+      EventGallery: [],
+      VideoGallary: []
+    });
+  }
+
+  if (files.Gallary_img && Array.isArray(files.Gallary_img)) {
+    files.Gallary_img.forEach((img) => {
+      existingEvent.EventGallery.push(img.path); 
+    });
+  }
+
+  await existingEvent.save();
+
+  return res.send(new ApiResponse(200, "Successfully updated the event gallery"));
+});
+
+const EventVideos = asyncHandler(async (req, res) => {
+  const user = req.user;
+  const videos = req.files;
+  const { EventID } = req.body;
+
+  if (!user || !videos || !EventID) {
+    throw new ApiError(400, "Please include all required fields: eventId, videos, and user.");
+  }
+  const existingDocument = await EventReport.findOne({ Event: EventID });
+
+  if (!existingDocument) {
+    throw new ApiError(400, "Please upload images first to initialize the database.");
+  }
+
+  if (videos.Video_gallary && Array.isArray(videos.Video_gallary)) {
+    videos.Video_gallary.forEach((video) => {
+      existingDocument.VideoGallary.push(video.path);
+    });
+  }
+
+  await existingDocument.save();
+  return res.send(new ApiResponse(200, "Video uploaded successfully", existingDocument));
+});
+
+
 export {
-    CreateEventReport
+    CreateEventReport,
+    BeforeAfter,
+    EventGallary,
+    EventVideos
 }

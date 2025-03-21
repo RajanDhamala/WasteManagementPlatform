@@ -165,6 +165,8 @@ const CreateCommunityPost = asyncHandler(async (req, res) => {
   console.log(content, eventId);
   const user = req.user;
 
+  console.log(content,eventId)
+
   if (!content || !eventId) {
       throw new ApiError(404, 'Please provide content and eventId');
   }
