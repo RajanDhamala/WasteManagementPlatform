@@ -26,6 +26,8 @@ import ImageComparer from "./AiComponnets/ImageComparer";
 import ChessBoard from "./ChessBoard";
 import AboutUs from "./MainSections/AboutPage";
 import CreateReport from "./MainSections/CreateReport";
+import QrCode from "./MainSections/QrCode";
+import QrGetter from "./MainSections/QrGetter";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -86,6 +88,8 @@ const App = () => {
               <Route path="/chess" element={<ChessBoard />} />
               <Route path="/about" element={<AboutUs />} />
               <Route path='makereport' element={<CreateReport/>}></Route>
+              <Route path={'scan'} element={<QrCode/>}> </Route>
+              <Route path={'qr'} element={<QrGetter/>}> </Route>
             </Routes>
           </Suspense>
         </BrowserRouter>

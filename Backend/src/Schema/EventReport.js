@@ -18,12 +18,15 @@ const EventReportSchema = new mongoose.Schema({
         }
     ,
     EventGallery: [  
-        {
-            type: String,
+       {
+        _id:false,
+        url: { type: String, required: true }, 
+        caption: { type: String, required: false }
         }
-    ],VideoGallary:[
+    ],VideoGallery: [
         {
-            type:String
+            url: { type: String, required: true }, 
+            caption: { type: String, required: false }
         }
     ],Particpiants:{
         type:mongoose.Schema.Types.ObjectId,
