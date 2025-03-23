@@ -12,6 +12,7 @@ import dotenv from 'dotenv';
 import ReviewRouter from './src/Routes/ReviewRotes.js';
 import StreamRoutes from './src/Routes/StreamRoutes.js';
 import EventReportRouter from './src/Routes/EventReport.js';
+import ParticipantRouter from './src/Routes/ParticipantRouter.js'
 
 
 dotenv.config();
@@ -28,8 +29,6 @@ app.use(
   })
 );
 
-
-
 app.use(useragent.express());
 
 app.get('/', (req, res) => {
@@ -44,6 +43,7 @@ app.use('/review', ReviewRouter);
 app.use('/stream', StreamRoutes);
 app.use('/community', CommunityRoute);
 app.use('/report', EventReportRouter);
+app.use('/participate',ParticipantRouter)
 
 app.use((err, req, res, next) => {
   res.status(err.statusCode || 500).json({

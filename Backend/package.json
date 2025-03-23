@@ -36,7 +36,8 @@
     "qrcode": "^1.5.4",
     "redis": "^4.7.0",
     "sharp": "^0.33.5",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "morgan": "^1.10.0",

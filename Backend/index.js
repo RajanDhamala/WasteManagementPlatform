@@ -4,22 +4,26 @@ import ConnectDb from './src/Database/ConnectDb.js';
 import { Server } from 'socket.io';
 import http from 'http';
 import SocketConnection from './src/Utils/SocketConnection.js';
-import { connectRedis } from './src/Utils/RedisUtil.js';
 
 dotenv.config();
 
+let io;  // Declare io variable
+
+const server = http.createServer(app);
+
 ConnectDb().then(() => {
-    const server = http.createServer(app);
-    const io = new Server(server, {
+    io = new Server(server, {
         cors: {
-            origin: ['http://localhost:5173'],
+            origin: process.env.FRONTEND_URL || 'http://localhost:5173',
             methods: ["GET", "POST"],
             credentials: true,
+            allowedHeaders: ["Content-Type", "Authorization"],
         },
+        transports: ['websocket', 'polling'],
+        pingTimeout: 60000,
     });
 
     SocketConnection(io);
-    connectRedis();
 
     server.listen(process.env.PORT, () => {
         console.log(`Server running on port ${process.env.PORT}`);
@@ -27,3 +31,11 @@ ConnectDb().then(() => {
 }).catch((err) => {
     console.error('Error connecting to the database:', err);
 });
+
+
+export const getIo = () => {
+    if (!io) {
+        throw new Error("Socket.io is not initialized yet!");
+    }
+    return io;
+};

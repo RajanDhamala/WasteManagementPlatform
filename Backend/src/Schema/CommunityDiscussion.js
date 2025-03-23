@@ -6,7 +6,7 @@ const { Schema, model } = mongoose;
 const ReplySchema = new Schema({
     replyID: {
         type: Schema.Types.ObjectId,
-        default: () => new mongoose.Types.ObjectId(), // Unique ID for each reply, but no uniqueness constraint
+        default: () => new mongoose.Types.ObjectId(), 
     },
     reply: {
         type: String,
@@ -72,7 +72,7 @@ const CommunityDiscussionSchema = new Schema({
             ref: "User"
         }
     ],
-    comments: [CommentSchema]  // Comments array can be empty until you add them
+    comments: [CommentSchema] 
 });
 
 const CommunityDiscussion = model("CommunityDiscussion", CommunityDiscussionSchema);

@@ -1,18 +1,44 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { BrowserMultiFormatReader } from '@zxing/library';
-import { Camera, AlertCircle, CheckCircle, RefreshCw, Copy, Trash2, History } from 'lucide-react';
+import { Camera, AlertCircle, CheckCircle, RefreshCw, Trash2, Send } from 'lucide-react';
+import axios from 'axios';
+import { useMutation } from '@tanstack/react-query';
 
 const QrCode = () => {
   const [scannedData, setScannedData] = useState(null);
   const [screenshot, setScreenshot] = useState(null);
-  const [scanHistory, setScanHistory] = useState([]);
-  const videoRef = useRef(null);
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState(null);
-  const [isCopied, setIsCopied] = useState(false);
   const [cameraPermission, setCameraPermission] = useState(null);
-  const [showHistory, setShowHistory] = useState(false);
-  const [hasScanned, setHasScanned] = useState(false); // Track if scan is completed
+  const [hasScanned, setHasScanned] = useState(false);
+  const videoRef = useRef(null);
+  const codeReaderRef = useRef(null);
+
+  // TanStack Query mutation for QR verification
+  const verifyQrMutation = useMutation({
+    mutationFn: async () => {
+      if (!scannedData) throw new Error("QR code not available");
+      
+      const hashedQR = typeof scannedData === 'object' && scannedData.encryptedData 
+        ? scannedData.encryptedData 
+        : scannedData;
+        
+      console.log("Sending verification with hashed QR data:", hashedQR);
+      
+      const response = await axios.post(
+        "http://localhost:8000/participate/verify",
+        { hashedQR },
+        { withCredentials: true }
+      );
+      
+      console.log(response);
+      return response.data;
+    },
+    onError: (error) => {
+      console.error("Verification error:", error);
+      setError(error.response?.data?.message || "Failed to verify QR code");
+    }
+  });
 
   useEffect(() => {
     startScanner();
@@ -23,25 +49,23 @@ const QrCode = () => {
   }, []);
 
   const startScanner = () => {
-    if (hasScanned) return; // Prevent starting scanner if already scanned
-
-    setScannedData(null);
-    setScreenshot(null);
+    // Create a new code reader instance each time
+    if (codeReaderRef.current) {
+      codeReaderRef.current.reset();
+    }
+    
+    codeReaderRef.current = new BrowserMultiFormatReader();
+    setIsScanning(true);
     setError(null);
-    setIsCopied(false);
-
-    const codeReader = new BrowserMultiFormatReader();
 
     if (videoRef.current) {
-      setIsScanning(true);
-
       navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
         .then((stream) => {
           setCameraPermission(true);
           videoRef.current.srcObject = stream;
           videoRef.current.play();
 
-          codeReader
+          codeReaderRef.current
             .decodeFromVideoDevice(null, videoRef.current, (result) => {
               if (result) {
                 handleScan(result.getText());
@@ -60,20 +84,19 @@ const QrCode = () => {
   };
 
   const handleScan = (scannedText) => {
-    if (hasScanned) return; // Don't allow scanning after one scan
+    if (hasScanned) return;
 
-    setScannedData(scannedText);
+    try {
+      // Try to parse the scanned data as JSON
+      const parsedData = JSON.parse(scannedText);
+      setScannedData(parsedData);
+    } catch (e) {
+      // If not valid JSON, store as string
+      setScannedData({ encryptedData: scannedText });
+    }
+    
     captureScreenshot();
-
-    // Add to scan history with timestamp
-    const newScan = {
-      data: scannedText,
-      timestamp: new Date().toLocaleTimeString(),
-      id: Date.now()
-    };
-
-    setScanHistory(prevHistory => [newScan, ...prevHistory]);
-    setHasScanned(true); // Mark as scanned
+    setHasScanned(true);
     stopScanning();
   };
 
@@ -92,6 +115,11 @@ const QrCode = () => {
   };
 
   const stopScanning = () => {
+    // Make sure to reset the code reader
+    if (codeReaderRef.current) {
+      codeReaderRef.current.reset();
+    }
+
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject;
       const tracks = stream?.getTracks();
@@ -102,36 +130,21 @@ const QrCode = () => {
     setIsScanning(false);
   };
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text || scannedData)
-      .then(() => {
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), 2000);
-      })
-      .catch(err => {
-        setError("Failed to copy text");
-      });
-  };
-
   const clearScanData = () => {
+    // Stop current scanning and reset everything
+    stopScanning();
+    
+    // Reset all states
     setScannedData(null);
     setScreenshot(null);
-    setHasScanned(false); 
-    startScanner(); 
-  };
-
-  const clearHistory = () => {
-    setScanHistory([]);
-    setShowHistory(false);
-  };
-
-  const deleteScanItem = (id) => {
-    setScanHistory(prevHistory => prevHistory.filter(item => item.id !== id));
-  };
-
-  const viewHistoryItem = (item) => {
-    setScannedData(item.data);
-    setShowHistory(false);
+    setHasScanned(false);
+    verifyQrMutation.reset();
+    setError(null);
+    
+    // Automatically restart scanner after a short delay
+    setTimeout(() => {
+      startScanner();
+    }, 300);
   };
 
   return (
@@ -205,6 +218,13 @@ const QrCode = () => {
         </div>
       )}
 
+      {verifyQrMutation.isSuccess && (
+        <div className="w-full p-3 mb-4 bg-green-100 border border-green-200 rounded-md text-green-700 flex items-center">
+          <CheckCircle size={20} className="mr-2 flex-shrink-0" />
+          <p className="text-sm">QR code verified successfully!</p>
+        </div>
+      )}
+
       {isScanning && !error && (
         <div className="w-full p-3 mb-4 bg-blue-100 border border-blue-200 rounded-md text-blue-700 flex items-center">
           <div className="mr-2 animate-spin">
@@ -214,34 +234,25 @@ const QrCode = () => {
         </div>
       )}
 
+      {verifyQrMutation.isPending && (
+        <div className="w-full p-3 mb-4 bg-blue-100 border border-blue-200 rounded-md text-blue-700 flex items-center">
+          <div className="mr-2 animate-spin">
+            <RefreshCw size={20} />
+          </div>
+          <p className="text-sm">Verifying QR code...</p>
+        </div>
+      )}
+
       {scannedData && (
         <div className="w-full bg-white rounded-lg p-4 border border-gray-200 mb-4">
-          <h3 className="text-lg font-semibold mb-2 text-gray-800">Scanned Result</h3>
-          <div className="relative">
-            <div className="bg-gray-100 p-3 rounded-md break-all max-h-32 overflow-y-auto text-gray-800">
-              {scannedData}
-            </div>
-            <button 
-              onClick={() => copyToClipboard()}
-              className="absolute top-2 right-2 text-gray-500 hover:text-blue-500 p-1 rounded-md hover:bg-gray-200"
-              aria-label="Copy to clipboard"
-              title="Copy to clipboard"
-            >
-              <Copy size={18} />
-            </button>
-          </div>
-          {isCopied && (
-            <p className="text-green-600 text-xs mt-1 flex items-center">
-              <CheckCircle size={14} className="mr-1" />
-              Copied to clipboard
-            </p>
-          )}
+          <h3 className="text-lg font-semibold mb-2 text-gray-800">QR Code Scanned Successfully</h3>
+          <p className="text-gray-700">QR code data has been captured and is ready to be verified.</p>
         </div>
       )}
 
       {/* Button Row */}
       <div className="w-full flex gap-3 mb-4">
-        {!isScanning && (
+        {!isScanning && !scannedData && (
           <button
             onClick={startScanner}
             className="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg flex items-center justify-center"
@@ -257,86 +268,31 @@ const QrCode = () => {
             className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg flex items-center justify-center"
           >
             <AlertCircle size={20} className="mr-2" />
-            Stop Scanner
+            Stop Scanning
           </button>
         )}
 
         {scannedData && (
-          <button
-            onClick={clearScanData}
-            className="flex-1 py-3 px-4 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg flex items-center justify-center"
-          >
-            <Trash2 size={20} className="mr-2" />
-            Clear Result
-          </button>
+          <>
+            <button
+              onClick={() => verifyQrMutation.mutate()}
+              className="flex-1 py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg flex items-center justify-center"
+              disabled={verifyQrMutation.isPending || verifyQrMutation.isSuccess}
+            >
+              <Send size={20} className="mr-2" />
+              Verify QR
+            </button>
+
+            <button
+              onClick={clearScanData}
+              className="flex-1 py-3 px-4 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg flex items-center justify-center"
+            >
+              <Trash2 size={20} className="mr-2" />
+              Clear & Scan Again
+            </button>
+          </>
         )}
-
-        <button
-          onClick={() => setShowHistory(!showHistory)}
-          className={`py-3 px-4 ${showHistory ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-500 hover:bg-gray-600'} text-white font-medium rounded-lg flex items-center justify-center`}
-          title="Scan History"
-        >
-          <History size={20} />
-        </button>
       </div>
-
-      {/* Scan History Section */}
-      {showHistory && (
-        <div className="w-full bg-white rounded-lg p-4 border border-gray-200 mb-4">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-lg font-semibold text-gray-800">Scan History</h3>
-            {scanHistory.length > 0 && (
-              <button 
-                onClick={clearHistory}
-                className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 flex items-center"
-              >
-                <Trash2 size={14} className="mr-1" />
-                Clear All
-              </button>
-            )}
-          </div>
-
-          {scanHistory.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">No scan history yet</p>
-          ) : (
-            <div className="max-h-56 overflow-y-auto">
-              {scanHistory.map((item) => (
-                <div key={item.id} className="border-b border-gray-100 py-2 last:border-0">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1 mr-2">
-                      <p className="text-sm font-medium text-gray-900 truncate">{item.data}</p>
-                      <p className="text-xs text-gray-500">{item.timestamp}</p>
-                    </div>
-                    <div className="flex space-x-1">
-                      <button 
-                        onClick={() => copyToClipboard(item.data)}
-                        className="p-1 text-gray-400 hover:text-blue-500"
-                        title="Copy"
-                      >
-                        <Copy size={16} />
-                      </button>
-                      <button 
-                        onClick={() => viewHistoryItem(item)}
-                        className="p-1 text-gray-400 hover:text-green-500"
-                        title="View"
-                      >
-                        <CheckCircle size={16} />
-                      </button>
-                      <button 
-                        onClick={() => deleteScanItem(item.id)}
-                        className="p-1 text-gray-400 hover:text-red-500"
-                        title="Delete"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 };

@@ -3,7 +3,7 @@ import AuthMiddleware from '../Middleware/JwtMiddleware.js';
 import {CreateEventReport,BeforeAfter,EventGallary,EventVideos}from '../Controller/EventReport.js';
 import uploadMiddleware from '../Middleware/UploadMiddleware.js';
 import uploadVideoMiddleware from '../Middleware/UploadVideos.js'
-import { CreateQr,VerifyQr} from '../Controller/Participation.js'
+
 
 const EventReportRouter=express.Router();
 
@@ -23,7 +23,5 @@ EventReportRouter.post('/Before_After',AuthMiddleware, upload.fields([
 EventReportRouter.post('/Image_Gallary',AuthMiddleware,upload.array('Gallary_img'),EventGallary)
 EventReportRouter.post('/Video_Gallary',AuthMiddleware,uploadVideoMiddleware('VideoGallary').array('Video_gallary'),EventVideos)
 
-EventReportRouter.get('/qr',AuthMiddleware,CreateQr)
-EventReportRouter.post('/verify',AuthMiddleware,VerifyQr)
 
 export default EventReportRouter;

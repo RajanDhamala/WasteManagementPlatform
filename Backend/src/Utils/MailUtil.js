@@ -54,4 +54,47 @@ const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000);
 };
 
-export { sendMail, generateOTP };
+const SendQr = async (title, location, time, qrHash, username, recipientEmail) => {
+  const Transponder = nodemailer.createTransport({
+    service: "gmail",
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept",
+    },
+    auth: {
+      user: process.env.EMAIL, 
+      pass: process.env.PASSWORD, 
+    },
+  });
+
+  try {
+    const htmlContent = `
+      <div style="font-size: 20px; font-family: Arial, sans-serif; color: #333;">
+        <h2>Event QR Code</h2>
+        <p>Hello <strong>${username}</strong>,</p>
+        <p>We are excited to have you join the event titled <strong>${title}</strong>.</p>
+        <p><strong>Location:</strong> ${location}</p>
+        <p><strong>Time:</strong> ${time}</p>
+        <p>Here is your unique QR code to check in at the event:</p>
+        <p><img src="data:image/png;base64,${qrHash}" alt="QR Code" style="width: 200px; height: 200px;"/></p>
+        <p>Please make sure to scan the QR code to gain access to the event. The code will be valid for 24hrs.</p>
+        <p>Looking forward to your participation!</p>
+      </div>
+    `;
+
+    await Transponder.sendMail({
+      from: process.env.GMAIL_USER, 
+      to: recipientEmail,         
+      subject: `Your QR Code for ${title}`,
+      html: htmlContent,
+    });
+
+    console.log(`QR Code sent to ${recipientEmail}`);
+  } catch (Err) {
+    console.log("Error while sending mail to", recipientEmail, Err);
+  }
+};
+
+
+export { sendMail, generateOTP,SendQr };
