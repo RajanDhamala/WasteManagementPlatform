@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import Event from '../Schema/Event.js'
 import QrCode from '../Schema/QrVerification.js'
 import {getIo} from '../../index.js'
-
+import Participation from '../Schema/Participation.js'
 
 dotenv.config()
 const CreateQr = asyncHandler(async (req, res) => {
@@ -28,7 +28,12 @@ const CreateQr = asyncHandler(async (req, res) => {
     if (!event) {
         throw new ApiError(404, "Event not found");
     }
+    const exists = await QrCode.exists({ event: eventId });
+    if(exists){
+        throw new ApiError(400,'event qr already created')
+    }
     const qrDocument = new QrCode({ event: eventId, qrData: [] });
+    const participants=new Participation({event:eventId})
     const qrResults = await Promise.all(
         event.Participants.map(async (user) => {
             const qrId = uuidv4();
@@ -60,10 +65,10 @@ const CreateQr = asyncHandler(async (req, res) => {
         })
     );
     await qrDocument.save();
+    await participants.save()
     console.log(qrResults);
     return res.send(new ApiResponse(200, 'Here are the QR codes', { qrResults, eventDate: event.date }));
 });
-
 
 const VerifyQr = asyncHandler(async (req, res) => {
 
@@ -84,17 +89,26 @@ const VerifyQr = asyncHandler(async (req, res) => {
         "qrData.hashedCode": data._id
       });
       
-      if (qrData) {
-          const matchedCode = qrData.qrData.find(qr => qr.hashedCode === data._id);
+      if(!qrData) throw new ApiError(400, 'invalid qr or already used');
+
       
-          if (matchedCode) {
-              console.log('The hashed code matches the secret code.');
-          } else {
-              console.log('No matching hashed code found.');
-              throw new ApiError(400,'invalid qr code')
-          }
-        }
-    return res.send(new ApiResponse(200, 'Successfully decrypted QR', data));
+      const participate=await Participation.findOne({event:data.eventId})
+      if(!participate) throw new ApiError('participation not found')
+
+        participate.participants.push({
+         user:data.user_id,
+        verifiedBy:req.user._id,
+        UUId:data._id
+     })
+        
+        await QrCode.updateOne(
+            { event: data.eventId },
+            { $pull: { qrData: { hashedCode: data._id } } }
+        );
+        await participate.save()
+      console.log('QR code entry deleted successfully.');
+  
+      return res.send(new ApiResponse(200, 'Successfully decrypted and deleted QR', data));
 });
 export {
     CreateQr,

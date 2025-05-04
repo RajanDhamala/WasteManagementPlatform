@@ -6,10 +6,6 @@ const ParticipationSchema = new mongoose.Schema({
         ref: 'Event',
         required: true
     },
-    requestedNo: {
-        type: Number,
-        required: true
-    },
     participants: [
         {
             user: {
@@ -24,6 +20,9 @@ const ParticipationSchema = new mongoose.Schema({
             verifiedBy: {
                 type: mongoose.Schema.Types.ObjectId,
                 ref: 'User'
+            },UUId:{
+                type:String,
+                unique:true
             }
         }
     ]
