@@ -1,14 +1,24 @@
-import React from 'react'
-import Login from './Login'
-import Register from './Register'
+import React, { useEffect } from 'react';
+import { Navigate, useNavigate } from 'react-router-dom';
+import useUserContext from '@/hooks/useUserContext'; 
+import { useAlert } from "@/UserContext/AlertContext"
 
-function AuthControl() {
-  return (
-   <>
-    <Login />
-    <Register />
-   </>
-  )
-}
+const ProtectedRoute = ({ children }) => {
+  const { CurrentUser } = useUserContext();
+  const { setAlert } = useAlert();
+  const navigate = useNavigate();
 
-export default AuthControl
+  useEffect(() => {
+    if (!CurrentUser) {
+      setAlert({ type: 'error', message: 'Please login to continue' });
+    }
+  }, [CurrentUser, setAlert]);
+
+  if (!CurrentUser) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+export default ProtectedRoute;

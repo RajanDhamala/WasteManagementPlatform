@@ -4,6 +4,7 @@ import { RegisterUser,LoginUser,LogoutUser,UpdateProfile,UserProfile,ForgotPassw
 import UpdatePfp from '../Middleware/ProfilePic.js';
 import {rateLimit} from 'express-rate-limit';
 import { AiApi } from '../Utils/AiIntegration.js';
+import { spawn } from 'child_process';
 
 const UserRoute=express.Router();
 
@@ -36,6 +37,28 @@ UserRoute.post('/leaveEvent',AuthMiddleware,LeaveEvent);
 UserRoute.get('/joinedevents',AuthMiddleware,SeeJoinedEvents);
 
 UserRoute.get('/info',AuthMiddleware,browserdetails);
+
+
+UserRoute.get('/scr',(req,res)=>{
+    const name = req.query.name || 'Alice';
+    const age = req.query.age || '30';
+  
+    const python = spawn('py', ['other_script.py', name, age]);
+  
+    let result = '';
+  
+    python.stdout.on('data', (data) => {
+      result += data.toString();
+    });
+  
+    python.stderr.on('data', (data) => {
+      console.error(`stderr: ${data}`);
+    });
+  
+    python.on('close', (code) => {
+      res.send(`Python script output: ${result}`);
+    });
+})
 
 UserRoute.get('/ai',(req,res)=>{
     AiApi('how ai works')

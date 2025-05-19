@@ -62,7 +62,9 @@ const EventSchema=new mongoose.Schema({
             ref:'Review',
             required:false
         }
-    ]
+    ],Priority:{
+        type:Boolean
+    }
 },{timestamps:true})
 
 const Event=mongoose.model('Event',EventSchema)

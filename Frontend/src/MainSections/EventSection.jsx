@@ -1,7 +1,9 @@
 import React, { useState, useCallback } from 'react';
 import EventCard from './EventCard';
-import { Camera, Calendar, MapPin, Users, Plus, Clock, X, Loader2,
-Filter, CheckCircle, AlertCircle, ArrowDownAZ, ArrowUpAZ } from 'lucide-react';
+import {
+  Camera, Calendar, MapPin, Users, Plus, Clock, X, Loader2,
+  Filter, CheckCircle, AlertCircle, ArrowDownAZ, ArrowUpAZ
+} from 'lucide-react';
 import axios from 'axios';
 import Alert from '@/AiComponnets/Alert';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -22,22 +24,21 @@ const SkeletonLoader = () => (
   </div>
 );
 
-const fetchEvents = async (filter = 'all') => {
+const fetchEvents = async ({ filter = 'all', page = 1, limit = 10 }) => {
   try {
-    const response = await axios.get(`${import.meta.env.VITE_BASE_URL}event/loadevents`, {
-      params: { filter },
-      withCredentials: true,
-    });
+    const response = await axios.get(
+      `${import.meta.env.VITE_BASE_URL}event/loadevents/${filter}/${page}/${limit}`,
+      { withCredentials: true }
+    );
 
     if (response.data.statusCode === 200) {
-      return response.data.data; 
+      return response.data;
     }
     throw new Error(response.data.message);
   } catch (error) {
     throw new Error(error.response?.data?.message || 'Failed to fetch events');
   }
 };
-
 
 function EventSection() {
   const initialFormState = {
@@ -57,26 +58,30 @@ function EventSection() {
   const [imagePreview, setImagePreview] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const eventsPerPage = 8; // Matches API limit
 
   const filterOptions = [
     { value: 'all', label: 'All Events', icon: <Filter size={20} /> },
     { value: 'latest', label: 'Latest', icon: <ArrowDownAZ size={20} /> },
     { value: 'oldest', label: 'Oldest', icon: <ArrowUpAZ size={20} /> },
     { value: 'completed', label: 'Completed', icon: <CheckCircle size={20} /> },
-    { value: 'pending', label: 'Pending', icon: <AlertCircle size={20} /> }
-  ];
-
-  const { data: eventinfo, isLoading, error } = useQuery({
-    queryKey: ['events', selectedFilter],
-    queryFn: () => fetchEvents(selectedFilter),
+    { value: 'pending', label: 'Pending', icon: <AlertCircle size={20} /> },
+  ];  const { data: queryData, isLoading, error } = useQuery({
+    queryKey: ['events', selectedFilter, currentPage],
+    queryFn: () => fetchEvents({ filter: selectedFilter, page: currentPage, limit: eventsPerPage }),
     staleTime: 1000 * 60 * 5,
   });
 
+  const eventinfo = queryData?.data?.events || [];
+  const totalPages = queryData?.data?.totalPages || 1;
+  const totalEvents = queryData?.data?.totalEvents || 0;
+
   const handleFilterSelect = (value) => {
     setSelectedFilter(value);
+    setCurrentPage(1); // Reset to first page on filter change
     setIsFilterOpen(false);
   };
 
@@ -113,7 +118,7 @@ function EventSection() {
   const handleRemoveImage = () => {
     setFormData({
       ...formData,
-      images: [], 
+      images: [],
     });
     setImagePreview(null);
   };
@@ -190,6 +195,12 @@ function EventSection() {
     }
   };
 
+  const handlePageChange = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       {alert && <Alert {...alert} onClose={() => setAlert(null)} />}
@@ -198,14 +209,13 @@ function EventSection() {
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-3xl font-bold text-gray-800">Community Events</h2>
           <div className="flex items-center gap-4">
-            {/* Add Filter Dropdown */}
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setIsFilterOpen(!isFilterOpen)}
                 className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                {filterOptions.find(opt => opt.value === selectedFilter)?.icon}
-                <span>{filterOptions.find(opt => opt.value === selectedFilter)?.label}</span>
+                {filterOptions.find((opt) => opt.value === selectedFilter)?.icon}
+                <span>{filterOptions.find((opt) => opt.value === selectedFilter)?.label}</span>
               </button>
 
               {isFilterOpen && (
@@ -234,53 +244,80 @@ function EventSection() {
             </button>
           </div>
         </div>
-                          {isLoading ? (
-                    <SkeletonLoader />
-                  ) : error ? (
-                    <p className="text-red-500">{error.message}</p>
-                  ) : eventinfo.length === 0 ? (
-                    <div className="flex flex-col justify-center items-center text-center py-20">
-                      <div className="max-w-md mx-auto">
-                        <h2 className="text-2xl font-bold text-gray-700 mb-4">
-                          No Events Available
-                        </h2>
-                        <p className="text-gray-500 mb-6">
-                          It looks like there are no events scheduled at the moment. Please check back later or create your own event to get started!
-                        </p>
-                        <button
-                          className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition duration-300"
-                          onClick={() => {
-                            setIsCreateModalOpen(true)
-                          }}
-                        >
-                          Create Event
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                      {eventinfo.map((event, index) => (
-                        <EventCard
-                          key={event._id || index}
-                          title={event.title}
-                          date={new Date(event.date).toDateString()}
-                          location={event.location}
-                          Peoples={event.participantCount}
-                          EventImg={event.EventImg}
-                          status={event.EventStatus}
-                        />
-                      ))}
-                    </div>
-                  )}
 
+        {isLoading ? (
+          <SkeletonLoader />
+        ) : error ? (
+          <p className="text-red-500">{error.message}</p>
+        ) : eventinfo.length === 0 ? (
+          <div className="flex flex-col justify-center items-center text-center py-20">
+            <div className="max-w-md mx-auto">
+              <h2 className="text-2xl font-bold text-gray-700 mb-4">No Events Available</h2>
+              <p className="text-gray-500 mb-6">
+                It looks like there are no events scheduled at the moment. Please check back later or create your own event to get started!
+              </p>
+              <button
+                className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition duration-300"
+                onClick={() => setIsCreateModalOpen(true)}
+              >
+                Create Event
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {eventinfo.map((event, index) => (
+                <EventCard
+                  key={event._id || index}
+                  title={event.title}
+                  date={new Date(event.date).toDateString()}
+                  location={event.location}
+                  Peoples={event.participantCount}
+                  EventImg={event.EventImg}
+                  status={event.EventStatus}
+                />
+              ))}
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center gap-4 mt-8">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className={`px-4 py-2 rounded-lg transition-colors ${
+                    currentPage === 1
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : 'bg-green-600 text-white hover:bg-green-700'
+                  }`}
+                >
+                  Previous
+                </button>
+                <span className="text-gray-700">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className={`px-4 py-2 rounded-lg transition-colors ${
+                    currentPage === totalPages
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : 'bg-green-600 text-white hover:bg-green-700'
+                  }`}
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </>
+        )}
 
         {isCreateModalOpen && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div
               className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] shadow-2xl transform transition-all"
-              style={{
-                animation: 'modal-pop 0.3s ease-out',
-              }}
+              style={{ animation: 'modal-pop 0.3s ease-out' }}
             >
               <div className="sticky top-0 bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-4 rounded-t-2xl z-10">
                 <div className="flex justify-between items-center">
@@ -297,10 +334,8 @@ function EventSection() {
                 </p>
               </div>
 
-              {/* Scrollable content with hidden scrollbar */}
               <div className="overflow-y-auto max-h-[calc(90vh-100px)] custom-scrollbar">
                 <form onSubmit={handleSubmit} className="p-6 space-y-8">
-                  {/* Title Section */}
                   <div className="space-y-2">
                     <label className="block text-sm font-semibold text-gray-700">
                       Event Title
@@ -317,7 +352,6 @@ function EventSection() {
                     />
                   </div>
 
-                  {/* Date and Time Section */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <label className="block text-sm font-semibold text-gray-700">
@@ -361,7 +395,6 @@ function EventSection() {
                     </div>
                   </div>
 
-                  {/* Location Section */}
                   <div className="space-y-2">
                     <label className="block text-sm font-semibold text-gray-700">
                       Location
@@ -384,7 +417,6 @@ function EventSection() {
                     </div>
                   </div>
 
-         
                   <div className="space-y-2">
                     <label className="block text-sm font-semibold text-gray-700">
                       Description
@@ -401,7 +433,6 @@ function EventSection() {
                     ></textarea>
                   </div>
 
-               
                   <div className="space-y-2">
                     <label className="block text-sm font-semibold text-gray-700">
                       Problem Statement
@@ -418,7 +449,6 @@ function EventSection() {
                     ></textarea>
                   </div>
 
-                  {/* Volunteers Section */}
                   <div className="space-y-2">
                     <label className="block text-sm font-semibold text-gray-700">
                       Required Volunteers
@@ -442,7 +472,6 @@ function EventSection() {
                     </div>
                   </div>
 
-                  {/* Image Upload Section */}
                   <div className="space-y-2">
                     <label className="block text-sm font-semibold text-gray-700">
                       Event Images
@@ -486,7 +515,8 @@ function EventSection() {
                                   <X size={20} className="text-gray-600" />
                                 </button>
                                 <p className="text-white text-sm">
-                                  Click to {formData.images.length >= 3 ? 'change' : 'add more'} images ({formData.images.length}/3)
+                                  Click to {formData.images.length >= 3 ? 'change' : 'add more'} images (
+                                  {formData.images.length}/3)
                                 </p>
                               </div>
                             </div>
@@ -512,7 +542,8 @@ function EventSection() {
                                     {formData.images.length}/3 images selected
                                   </p>
                                   <p className="text-xs text-gray-500">
-                                    {3 - formData.images.length} more {3 - formData.images.length === 1 ? 'image' : 'images'} can be added
+                                    {3 - formData.images.length} more{' '}
+                                    {3 - formData.images.length === 1 ? 'image' : 'images'} can be added
                                   </p>
                                 </div>
                               )}
@@ -523,7 +554,6 @@ function EventSection() {
                     </div>
                   </div>
 
-                  {/* Form Actions */}
                   <div className="flex justify-end gap-4 pt-4 border-t">
                     <button
                       type="button"

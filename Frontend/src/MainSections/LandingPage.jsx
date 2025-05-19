@@ -1,10 +1,11 @@
 import { useState } from "react"
-import { Calendar, Search } from "lucide-react"
+import { Calendar, Import, Search } from "lucide-react"
 import EventCard from "./EventCard"
 import { Link } from "react-router-dom"
 import { motion, useScroll, useTransform } from "framer-motion"
 import { useAlert } from "@/UserContext/AlertContext"
 import axios from 'axios'
+import { useQuery } from "@tanstack/react-query"
 
 
 const LandingPage = () => {
@@ -19,6 +20,20 @@ const LandingPage = () => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return regex.test(email);
   };
+
+  const fetchHomeEvents=async()=>{
+   const response=await axios.get(`${import.meta.env.VITE_BASE_URL}event/home`)
+   console.log(response.data)
+   return response.data
+  }
+  const {data,isError,isLoading,error}=useQuery({
+    queryKey:['HomeEvents'],
+    queryFn:fetchHomeEvents,
+    staleTime: 10 * 60 * 1000, 
+  onSuccess: (data) => {
+    console.log('Fetched Home Events:', data);
+  },
+  })
   
   const SubscribeDb = async () => {
     if (!validateEmail(email)) {
@@ -130,9 +145,7 @@ const LandingPage = () => {
             <p className="text-gray-600 max-w-2xl mx-auto">
               Join these community events and help make our environment cleaner and greener
             </p>
-          </motion.div>
-
-          {/* Events Grid */}
+          </motion.div>          {/* Events Grid */}
           <motion.div
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8"
             initial={{ opacity: 0, y: 50 }}
@@ -140,38 +153,41 @@ const LandingPage = () => {
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.4, staggerChildren: 0.1 }}
           >
-            <EventCard
-              title="Ghinaghat Cleanup Drive"
-              date="Sat, Apr 20 • 7:00 AM"
-              location="Ghinaghat, Biratnagar-3"
-              Peoples="45"
-              image={"./ghinaghat.jpg"}
-              status="Ongoing"
-            />
-            <EventCard
-              title="Keshaliya River Cleanup"
-              date="Sun, Apr 21 • 6:30 AM"
-              location="Keshaliya Bridge, Biratnagar-7"
-              Peoples="32"
-              image={"./ktm.jpg"}
-              status="Completed"
-            />
-            <EventCard
-              title="Tinpaini Market Cleanup"
-              date="Sat, Apr 27 • 7:30 AM"
-              location="Tinpaini Chowk, Biratnagar-5"
-              Peoples="28"
-              image={"./dirt.webp"}
-              status="Finshed"
-            />
-            <EventCard
-              title="Bargachhi Park Revival"
-              date="Sun, Apr 28 • 8:00 AM"
-              location="Bargachhi, Biratnagar-4"
-              Peoples="37"
-              status="Ongoing"
-              image={"./defulthu.jpg"}
-            />
+            {isLoading ? (
+              // Loading skeleton
+              [...Array(4)].map((_, index) => (
+                <div key={index} className="bg-white rounded-lg p-4 shadow-lg animate-pulse">
+                  <div className="w-full h-48 bg-gray-200 rounded-lg mb-4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                </div>
+              ))
+            ) : isError ? (
+              <div className="col-span-full text-center text-red-600">
+                Error loading events: {error?.message || 'Something went wrong'}
+              </div>
+            ) : (
+              data?.map((event) => (
+               <EventCard
+  key={event._id}
+  title={event.title}
+  date={new Date(`${event.date}T${event.time}`).toLocaleString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })}
+  location={event.location}
+  EventImg={event.EventImg.length > 0 ? event.EventImg : ['./defulthu.jpg']}
+  status={event.EventStatus}
+  Peoples={event.participantCount}
+/>
+
+              ))
+            )}
           </motion.div>
 
           <motion.div
@@ -219,14 +235,14 @@ const LandingPage = () => {
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="text-green-100 hover:text-white">
+                  <Link to='/events' className="text-green-100 hover:text-white">
                     Events
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a href="#" className="text-green-100 hover:text-white">
+                  <Link to='/community' className="text-green-100 hover:text-white">
                     Communities
-                  </a>
+                  </Link>
                 </li>
                 <li>
                   <a href="#" className="text-green-100 hover:text-white">

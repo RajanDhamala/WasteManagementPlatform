@@ -1,19 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageCircle, Users, Share2, ThumbsUp, MessageSquare, ChevronRight, Calendar, Send, Leaf, MapPin, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { MessageCircle, Users, Share2, ThumbsUp, MessageSquare, ChevronRight, Calendar, Send, Leaf, MapPin, AlertTriangle, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import Editdot from '../UtilsCOmps/EditDot';
-import useUserContext from '@/hooks/useUserContext';
+import  useUserContext from '../hooks/useUserContext';
 
 const CommunityDiscussion = () => {
   const [activeTab, setActiveTab] = useState('discussions');
@@ -361,8 +359,7 @@ const CommunityDiscussion = () => {
             <div className="flex items-center gap-2">
               <p className="text-xs text-green-600 opacity-70">
                 {formatDate(comment.commentDate || comment.replyDate)}
-              </p>
-              {comment.commenter?.name==CurrentUser.name && (
+              </p>              {CurrentUser && comment.commenter?.name === CurrentUser?.name && (
                 <Editdot 
                   onEdit={() => handleEditComment(discussionId, comment.commentID, comment.comment)}
                   onDelete={() => handleDeleteComment(discussionId, comment.commentID)}
@@ -443,7 +440,7 @@ const CommunityDiscussion = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white py-8" style={leafPattern}>
+    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white py-8 md:ml-[53px]" style={leafPattern}>
       <div className="container mx-auto px-4">
         <div className="mb-8">
           <div className="flex items-center mb-2">
@@ -483,32 +480,72 @@ const CommunityDiscussion = () => {
                         onClick={() => setSelectedEvent('all')}
                       >
                         All Discussions
-                      </Button>
-                      {isLoading ? (
-                        <div>Loading events...</div>
-                      ) : isEventsError ? (
-                        <div>Error: {eventsError?.message || 'Failed to load events'}</div>
-                      ) : eventsData?.data?.events?.map(event => (
-                        <Button 
-                          key={event._id}
-                          variant={selectedEvent === event._id ? "default" : "outline"}
-                          className={`w-full justify-start py-6 ${selectedEvent === event._id ? 'bg-green-600 hover:bg-green-700' : 'hover:bg-green-50 text-green-800 border-green-200'}`}
-                          onClick={() => setSelectedEvent(event._id)}
-                        >
-                          <div className="flex items-center text-left">
-                            <div className="bg-green-100 p-2 rounded-full mr-3 text-green-700"></div>
-                            <div>
-                              <div>{event.title}</div>
-                              <div className="text-xs opacity-70 flex items-center mt-1">
-                                <MapPin className="h-3 w-3 mr-1" /> {event.location}
-                              </div>
+                      </Button>                      {isLoading ? (
+                        <div className="space-y-2">
+                          {[1, 2, 3].map((i) => (
+                            <div key={i} className="animate-pulse">
+                              <div className="h-16 bg-green-50 rounded-lg border border-green-100"></div>
                             </div>
-                          </div>
-                        </Button>
-                      ))}
+                          ))}
+                        </div>
+                      ) : isEventsError ? (
+                        <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-600 flex items-center">
+                          <AlertTriangle className="h-4 w-4 mr-2" />
+                          {eventsError?.message || 'Failed to load events'}
+                        </div>
+                      ) : eventsData?.data?.events?.map(event => (
+                        <motion.div
+                          key={event._id}
+                          initial={{ opacity: 0, y: 5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <Button
+                            variant={selectedEvent === event._id ? "default" : "outline"}
+                            className={`w-full justify-start mb-[4px] group transition-all duration-200 py-5 ${
+                              selectedEvent === event._id 
+                                ? 'bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white shadow-lg shadow-green-100' 
+                                : 'hover:bg-green-50/80 text-green-800 border-green-200 hover:border-green-300 hover:shadow-md'
+                            }`}
+                            onClick={() => setSelectedEvent(event._id)}
+                          >
+                            <div className="flex items-center text-left w-full">
+                              <div className={`rounded-xl p-2.5 mr-3 flex items-center justify-center transition-all duration-200 ${
+                                selectedEvent === event._id 
+                                  ? 'bg-green-500/20 backdrop-blur-sm' 
+                                  : 'bg-green-100 group-hover:bg-green-200/80'
+                              }`}>
+                                <Calendar className={`h-5 w-5 transition-colors ${
+                                  selectedEvent === event._id ? 'text-white' : 'text-green-700 group-hover:text-green-800'
+                                }`} />
+                              </div>
+                              <div className="flex-1 ">
+                                <div className="font-medium text-[13px] leading-tight mb-1">{event.title}</div>
+                                <div className={`text-xs flex items-center ${
+                                  selectedEvent === event._id ? 'text-white/90' : 'text-green-600'
+                                }`}>
+                                  <MapPin className="h-3 w-3 mr-1" />
+                                  <span className="truncate">{event.location}</span>
+                                </div>
+                              </div>
+                              <ChevronRight className={`h-4 w-4 ml-2 transition-transform ${
+                                selectedEvent === event._id 
+                                  ? 'text-white transform translate-x-1' 
+                                  : 'text-green-400 group-hover:text-green-600 opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0'
+                              }`} />
+                            </div>
+                          </Button>
+                        </motion.div>                      ))}
+                    </div>
+                  </TabsContent>                  <TabsContent value="topics">
+                    <div className="p-8 text-center">
+                      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <MessageCircle className="h-8 w-8 text-green-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-green-800 mb-2">Topics Coming Soon</h3>
+                      <p className="text-sm text-green-600 opacity-80">We're working on bringing you organized discussion topics. Stay tuned!</p>
                     </div>
                   </TabsContent>
-                  <TabsContent value="topics">{/* Topics content */}</TabsContent>
                 </Tabs>
               </CardContent>
             </Card>
@@ -520,7 +557,7 @@ const CommunityDiscussion = () => {
               <CardContent className="pt-6">
                 <div className="flex items-start space-x-3">
                   <Avatar className="border-2 border-green-200">
-                    <AvatarImage src={CurrentUser.ProfileImage || ''} />
+                    <AvatarImage src={CurrentUser?.ProfileImage || ''} />
                     <AvatarFallback className="bg-green-100 text-green-800">YP</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 space-y-3">
@@ -548,31 +585,64 @@ const CommunityDiscussion = () => {
                         >
                           <Calendar className="w-4 h-4 mr-1" />
                           Select Event
-                        </Button>
-                        {showEventSelector && (
+                        </Button>                        {showEventSelector && (
                           <motion.div 
-                            className="absolute mt-2 bg-white shadow-lg rounded-md border border-green-100 p-2 z-10"
+                            className="fixed inset-0 bg-black/20 backdrop-blur-[2px] z-40 flex items-start justify-center pt-32"
                             variants={fadeIn}
                             initial="hidden"
                             animate="visible"
                           >
-                            {eventsData?.data?.events?.map(event => (
-                              <Button 
-                                key={event._id}
-                                variant="ghost"
-                                size="sm"
-                                className="w-full justify-start text-sm text-green-700 hover:bg-green-50"
-                                onClick={() => {
-                                  setSelectedEvent(event._id);
-                                  setShowEventSelector(false);
-                                }}
+                            <motion.div 
+                              className="bg-white/95 backdrop-blur-sm shadow-xl rounded-xl border border-green-100 p-3 z-50 w-[500px] max-h-[400px] relative"
+                              initial={{ scale: 0.95, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              transition={{ duration: 0.2 }}
+                            >                              {/* Close button */}
+                              <button 
+                                onClick={() => setShowEventSelector(false)}
+                                className="absolute right-2 top-2 p-1 hover:bg-green-50 rounded-full text-green-600 transition-colors"
                               >
-                                <div className="flex items-center">
-                                  <div className="bg-green-100 p-1.5 rounded-full mr-2 text-green-700"></div>
-                                  {event.title}
-                                </div>
-                              </Button>
-                            ))}
+                                <X className="h-4 w-4" />
+                              </button>
+
+                              {/* Event list */}
+                              <div className="space-y-1.5 overflow-y-auto max-h-[300px] p-1">
+                                {eventsData?.data?.events?.map(event => (
+                                    <button
+                                      key={event._id}
+                                      className={`w-full flex items-center p-2.5 text-sm rounded-lg transition-all ${
+                                        selectedEvent === event._id
+                                          ? 'bg-green-50 text-green-800 ring-1 ring-green-200'
+                                          : 'text-green-700 hover:bg-green-50/80'
+                                      }`}
+                                      onClick={() => {
+                                        setSelectedEvent(event._id);
+                                        setShowEventSelector(false);
+                                      }}
+                                    >
+                                      <div className="flex items-center w-full">
+                                        <div className={`p-2 rounded-lg mr-3 ${
+                                          selectedEvent === event._id ? 'bg-green-200' : 'bg-green-100'
+                                        }`}>
+                                          <Calendar className="h-4 w-4 text-green-600" />
+                                        </div>
+                                        <div className="flex-1 text-left">
+                                          <div className="font-medium line-clamp-1">{event.title}</div>
+                                          <div className="text-xs text-green-600/80 flex items-center mt-0.5">
+                                            <MapPin className="h-3 w-3 mr-1" />
+                                            <span className="line-clamp-1">{event.location}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </button>
+                                ))}                                {eventsData?.data?.events?.length === 0 && (
+                                  <div className="text-center py-8 text-green-600">
+                                    <Calendar className="h-12 w-12 mx-auto mb-2 text-green-300" />
+                                    <p>No events available</p>
+                                  </div>
+                                )}
+                              </div>
+                            </motion.div>
                           </motion.div>
                         )}
                       </div>
@@ -587,15 +657,20 @@ const CommunityDiscussion = () => {
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </Card>              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-green-800 mb-2">
+                    {selectedEvent === 'all' ? 'Community Discussions' : `Discussions: ${eventsData?.data?.events?.find(e => e._id === selectedEvent)?.title || ''}`}
+                  </h2>
+                  <p className="text-sm text-green-600">
+                    {selectedEvent === 'all' 
+                      ? 'Join the conversation and share your thoughts with the community' 
+                      : 'Share your experiences and connect with event participants'}
+                  </p>
+                </div>
+              </div>
 
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-green-800">
-                {selectedEvent === 'all' ? 'Community Discussions' : `Discussions: ${eventsData?.data?.events?.find(e => e._id === selectedEvent)?.title || ''}`}
-              </h2>
-            </div>
-
-            <div className="space-y-6">
+              <div className="space-y-6 mb-8">
               {isDiscussionLoading ? (
                 <div className="space-y-4">
                   {[1, 2, 3].map((i) => (
@@ -642,7 +717,7 @@ const CommunityDiscussion = () => {
                                 {discussion.EventId && (
                                   <Badge className="bg-green-100 text-green-700">{eventsData?.data?.events?.find(e => e._id === discussion.EventId)?.title || 'Event'}</Badge>
                                 )}
-                                {discussion.postedBy._id==CurrentUser._id?
+                                {discussion.postedBy._id==CurrentUser?._id?
                                   <Editdot 
                                   onEdit={() => handleEditDiscussion(discussion._id, discussion.topic)}
                                   onDelete={() => handleDeleteDiscussion(discussion._id)}

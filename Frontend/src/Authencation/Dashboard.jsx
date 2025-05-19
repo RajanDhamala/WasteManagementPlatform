@@ -1,176 +1,257 @@
-import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import axios from "axios";
-import moment from "moment";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { 
-  User, MapPin, Calendar, Settings, Camera, 
-  Mail, Activity, ChevronRight, LogOut, Coffee,Clock
-} from "lucide-react";
-import { useAlert } from "@/UserContext/AlertContext";
-
+import { useState, useEffect } from "react"
+import { motion } from "framer-motion"
+import axios from "axios"
+import moment from "moment"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { User, MapPin, Calendar, Settings, Camera, Activity, ChevronRight, LogOut, Coffee, Clock } from "lucide-react"
+import { useAlert } from "@/UserContext/AlertContext"
 
 
 const Dashboard = () => {
-
-
-
-  const[joinedevents,setjoinedevents]=useState([]);
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(false);
+  // State variables
+  const [joinedEvents, setJoinedEvents] = useState([])
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [open, setOpen] = useState(false)
   const [formData, setFormData] = useState({
     bio: "",
     location: "",
     birthdate: "",
     ProfileImage: null,
-  });
-  const [preview, setPreview] = useState(null);
+  })
+  const [preview, setPreview] = useState(null)
 
-  const {setAlert}=useAlert();
+  const { setAlert } = useAlert()
 
+  // Fetch user data on component mount
   useEffect(() => {
-    fetchUser();
-  }, []);
+    fetchUser()
+  }, [])
 
-  const showJoinedEvents=async()=>{
-    try{
-      const response=await axios.get(`${import.meta.env.VITE_BASE_URL}user/joinedevents`,{withCredentials:true});
-      console.log(response.data.data);
-      if(response.data.statusCode===200){
-        setjoinedevents(response.data.data);
-      setAlert({type:"success",message:response.data.message,title:'Joined Events' } );
-      }else{
-        setAlert({type:"error",message:response.data.message,title:'Joined Events' } );
+  // Function to fetch joined events
+  const showJoinedEvents = async () => {
+    try {
+      const response = await axios.get(`${import.meta.env.VITE_BASE_URL}user/joinedevents`, {
+        withCredentials: true,
+      })
+
+      console.log(response.data.data)
+
+      if (response.data.statusCode === 200) {
+        setJoinedEvents(response.data.data)
+        setAlert({
+          type: "success",
+          message: response.data.message,
+          title: "Joined Events",
+        })
+      } else {
+        setAlert({
+          type: "error",
+          message: response.data.message,
+          title: "Joined Events",
+        })
       }
-  
-    }catch(Err){
-      console.log(Err);
-      
+    } catch (err) {
+      console.log(err)
+      setAlert({
+        type: "error",
+        message: "Failed to fetch joined events",
+        title: "Error",
+      })
     }
   }
-  
 
+  // Function to fetch user profile
   const fetchUser = async () => {
     try {
-      const res = await axios.get("http://localhost:8000/user/profile", { withCredentials: true });
-      setUser(res.data.data);
-      setFormData({
-        bio: res.data.data.bio || "",
-        location: res.data.data.location || "",
-        birthdate: res.data.data.birthdate ? moment(res.data.data.birthdate).format("YYYY-MM-DD") : "",
-        ProfileImage: res.data.data.ProfileImage || null,
-      });
+      const res = await axios.get("http://localhost:8000/user/profile", {
+        withCredentials: true,
+      })
 
-      if(res.data.statusCode===200){
-        console.log(res.data.data);
-      }else{
-        setAlert({type:"error",message:res.data.message,title:'Update' } );
+      if (res.data.statusCode === 200) {
+        setUser(res.data.data)
+        console.log(res.data.data)
+
+        // Set form data from user profile
+        setFormData({
+          bio: res.data.data.bio || "",
+          location: res.data.data.location || "",
+          birthdate: res.data.data.birthdate ? moment(res.data.data.birthdate).format("YYYY-MM-DD") : "",
+          ProfileImage: res.data.data.ProfileImage || null,
+        })
+      } else {
+        setAlert({
+          type: "error",
+          message: res.data.message,
+          title: "Profile",
+        })
       }
-      setLoading(false);
+
+      setLoading(false)
     } catch (error) {
-      console.error("Error fetching user:", error);
-      setAlert({type:"error",message:error,title:'Update' } );
-      setLoading(false);
+      console.error("Error fetching user:", error)
+      setAlert({
+        type: "error",
+        message: "Failed to fetch user profile",
+        title: "Error",
+      })
+      setLoading(false)
     }
-  };
+  }
 
+  // Handle form input changes
   const handleChange = (e) => {
-    const { name, value, files } = e.target;
-    if (files) {
-      setFormData(prev => ({ ...prev, [name]: files[0] }));
-      setPreview(URL.createObjectURL(files[0]));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    }
-  };
-  async function  handelLogout(e){
-    const response=await axios.get("http://localhost:8000/user/logout",{withCredentials:true});
-    console.log(response.data.data);
-    setAlert({type:"success",message:response.data.message,title:'Logout' } );
-    setTimeout(()=>{
-      window.location.href="/login";
-    },1500)
-}
+    const { name, value, files } = e.target
 
+    if (files) {
+      setFormData((prev) => ({ ...prev, [name]: files[0] }))
+      setPreview(URL.createObjectURL(files[0]))
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }))
+    }
+  }
+
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      const response = await axios.get("http://localhost:8000/user/logout", {
+        withCredentials: true,
+      })
+
+      console.log(response.data)
+
+      setAlert({
+        type: "success",
+        message: response.data.message,
+        title: "Logout",
+      })
+
+      setTimeout(() => {
+        window.location.href = "/login"
+      }, 1500)
+    } catch (error) {
+      console.error("Error logging out:", error)
+      setAlert({
+        type: "error",
+        message: "Failed to logout",
+        title: "Error",
+      })
+    }
+  }
+
+  // Handle profile update
   const handleUpdate = async (e) => {
-    e.preventDefault();
-    const updatedData = new FormData();
-    Object.keys(formData).forEach(key => {
-      if (key === 'ProfileImage' && formData[key] instanceof File) {
-        updatedData.append(key, formData[key]);
-      } else if (key !== 'ProfileImage') {
-        updatedData.append(key, formData[key]);
+    e.preventDefault()
+
+    const updatedData = new FormData()
+
+    Object.keys(formData).forEach((key) => {
+      if (key === "ProfileImage" && formData[key] instanceof File) {
+        updatedData.append(key, formData[key])
+      } else if (key !== "ProfileImage") {
+        updatedData.append(key, formData[key])
       }
-    });
+    })
 
     try {
       const res = await axios.post("http://localhost:8000/user/UpdateProfile", updatedData, {
         withCredentials: true,
-      });
+      })
 
-      if(res.data.statusCode===200){
-        setUser(res.data.data);
-        setOpen(false);
-        setAlert({type:"success",message:res.data.message,title:'Update' } );
-      }else{
-        setAlert({type:"error",message:res.data.message,title:'Update' } );
+      if (res.data.statusCode === 200) {
+        setUser(res.data.data)
+        setOpen(false)
+        setAlert({
+          type: "success",
+          message: res.data.message,
+          title: "Update",
+        })
+      } else {
+        setAlert({
+          type: "error",
+          message: res.data.message,
+          title: "Update",
+        })
       }
-
     } catch (error) {
-      console.error("Error updating profile:", error);
-      setAlert({type:"error",message:error,title:'Update' } );
-    }
-  };
-
-  const leaveEvent=async(eventitle)=>{
-    console.log(eventitle);
-    try{
-      const response=await axios.post(`${import.meta.env.VITE_BASE_URL}user/leaveEvent`,{
-        eventId:eventitle,
-      },{withCredentials:true});
-      console.log(response.data);
-      if(response.data.statusCode===200){
-        setAlert({type:"success",message:response.data.message,title:'Leave Event' } );
-       setjoinedevents((prev)=>
-
-      prev.filter((event)=>event.title!==eventitle)
-      
-      );}else{
-          setAlert({type:"error",message:response.data.message,title:'Leave Event' } );
-        }
-    }catch(err){
-      console.log(err);
-      setAlert({type:"error",message:err,title:'Leave Event' } );
+      console.error("Error updating profile:", error)
+      setAlert({
+        type: "error",
+        message: "Failed to update profile",
+        title: "Error",
+      })
     }
   }
 
+  // Handle leaving an event
+  const leaveEvent = async (eventTitle) => {
+    console.log(eventTitle)
+
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_BASE_URL}user/leaveEvent`,
+        {
+          eventId: eventTitle,
+        },
+        {
+          withCredentials: true,
+        },
+      )
+
+      console.log(response.data)
+
+      if (response.data.statusCode === 200) {
+        setAlert({
+          type: "success",
+          message: response.data.message,
+          title: "Leave Event",
+        })
+
+        setJoinedEvents((prev) => prev.filter((event) => event.title !== eventTitle))
+      } else {
+        setAlert({
+          type: "error",
+          message: response.data.message,
+          title: "Leave Event",
+        })
+      }
+    } catch (err) {
+      console.log(err)
+      setAlert({
+        type: "error",
+        message: "Failed to leave event",
+        title: "Error",
+      })
+    }
+  }
+
+  // Show loading state
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="space-y-4 text-center">
           <motion.div
             animate={{ rotate: 360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
           >
             <Activity size={40} className="text-blue-600" />
           </motion.div>
           <p className="text-gray-600">Loading your dashboard...</p>
         </div>
       </div>
-    );
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 md:mt-14 mt-10">
+    <div className="min-h-screen bg-gray-50 md:mt-2 md:ml-10">
       <div className="container mx-auto px-4 py-8">
         <div className="grid lg:grid-cols-12 gap-8">
           {/* Sidebar */}
-          <motion.div 
+          <motion.div
             className="lg:col-span-3"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -180,10 +261,7 @@ const Dashboard = () => {
               <CardContent className="p-6">
                 <div className="flex flex-col items-center text-center">
                   <div className="relative group mb-4">
-                    <motion.div
-                      whileHover={{ scale: 1.05 }}
-                      className="relative"
-                    >
+                    <motion.div whileHover={{ scale: 1.05 }} className="relative">
                       <img
                         src={preview || user?.ProfileImage || "/api/placeholder/150/150"}
                         alt="Profile"
@@ -197,10 +275,7 @@ const Dashboard = () => {
                   <h2 className="text-xl font-semibold text-gray-900 mb-1">{user?.name}</h2>
                   <p className="text-gray-500 text-sm mb-4">{user?.email}</p>
                   <div className="w-full space-y-2">
-                    <Button 
-                      onClick={() => setOpen(true)}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                    >
+                    <Button onClick={() => setOpen(true)} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
                       Edit Profile
                     </Button>
                   </div>
@@ -215,11 +290,17 @@ const Dashboard = () => {
                     <Settings size={18} />
                     <span>Settings</span>
                   </button>
-                  <button onClick={(e)=>showJoinedEvents()} className="w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors duration-200">
-                    <Coffee size={18}  />
+                  <button
+                    onClick={showJoinedEvents}
+                    className="w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                  >
+                    <Coffee size={18} />
                     <span>Activity</span>
                   </button>
-                  <button className="w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors duration-200" onClick={(e)=>handelLogout(e)}>
+                  <button
+                    className="w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors duration-200"
+                    onClick={handleLogout}
+                  >
                     <LogOut size={18} />
                     <span>Logout</span>
                   </button>
@@ -228,20 +309,22 @@ const Dashboard = () => {
             </Card>
           </motion.div>
 
-          <motion.div 
+          {/* Main Content */}
+          <motion.div
             className="lg:col-span-9"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
             <div className="space-y-6">
+              {/* Profile Overview Card */}
               <Card>
                 <CardHeader className="border-b border-gray-100">
                   <CardTitle className="text-xl text-gray-900">Profile Overview</CardTitle>
                 </CardHeader>
                 <CardContent className="p-6">
                   <div className="grid md:grid-cols-2 gap-6">
-                    <motion.div 
+                    <motion.div
                       whileHover={{ scale: 1.02 }}
                       className="p-6 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100"
                     >
@@ -249,12 +332,10 @@ const Dashboard = () => {
                         <User size={24} />
                         <h3 className="text-lg font-semibold">Bio</h3>
                       </div>
-                      <p className="text-gray-600 leading-relaxed">
-                        {user?.bio || "Tell us about yourself..."}
-                      </p>
+                      <p className="text-gray-600 leading-relaxed">{user?.bio || "Tell us about yourself..."}</p>
                     </motion.div>
 
-                    <motion.div 
+                    <motion.div
                       whileHover={{ scale: 1.02 }}
                       className="p-6 rounded-xl bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100"
                     >
@@ -262,12 +343,10 @@ const Dashboard = () => {
                         <MapPin size={24} />
                         <h3 className="text-lg font-semibold">Location</h3>
                       </div>
-                      <p className="text-gray-600 leading-relaxed">
-                        {user?.location || "Add your location..."}
-                      </p>
+                      <p className="text-gray-600 leading-relaxed">{user?.location || "Add your location..."}</p>
                     </motion.div>
 
-                    <motion.div 
+                    <motion.div
                       whileHover={{ scale: 1.02 }}
                       className="p-6 rounded-xl bg-gradient-to-br from-green-50 to-teal-50 border border-green-100 md:col-span-2"
                     >
@@ -283,6 +362,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
+              {/* Recent Activity Card */}
               <Card>
                 <CardHeader className="border-b border-gray-100">
                   <CardTitle className="text-xl text-gray-900">Recent Activity</CardTitle>
@@ -303,7 +383,11 @@ const Dashboard = () => {
                           </div>
                           <div>
                             <p className="text-gray-900 font-medium">Profile updated</p>
-                            <p className="text-gray-500 text-sm">{moment().subtract(i + 1, 'days').format('MMMM D, YYYY')}</p>
+                            <p className="text-gray-500 text-sm">
+                              {moment()
+                                .subtract(i + 1, "days")
+                                .format("MMMM D, YYYY")}
+                            </p>
                           </div>
                         </div>
                         <ChevronRight className="text-gray-400" />
@@ -317,75 +401,68 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <section className="px-3">
-      {joinedevents.length > 0 ?(
-        <div className="flex flex-col items-center justify-center gap-6">
-          <h1 className="text-3xl font-semibold text-gray-500">
-            Joined Event Details
-          </h1>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {joinedevents.map((event, index) => (
-              <Card key={index} className="w-full max-w-sm">
-                <CardHeader className="p-0">
-                  <img
-                    src={event.EventImg || '/api/placeholder/300/200'}
-                    alt={event.title}
-                    className="h-52 w-full object-cover rounded-t-lg"
-                  />
-                </CardHeader>
-                <CardContent className="p-4">
-                  <CardTitle className="text-xl mb-4">{event.title}</CardTitle>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Activity size={18} />
-                        <span>Status:</span>
+      {/* Joined Events Section */}
+      <section className="px-3 py-8">
+        {joinedEvents.length > 0 ? (
+          <div className="flex flex-col items-center justify-center gap-6">
+            <h1 className="text-3xl font-semibold text-gray-500">Joined Event Details</h1>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {joinedEvents.map((event, index) => (
+                <Card key={index} className="w-full max-w-sm">
+                  <CardHeader className="p-0">
+                    <img
+                      src={event.EventImg || "/api/placeholder/300/200"}
+                      alt={event.title}
+                      className="h-52 w-full object-cover rounded-t-lg"
+                    />
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <CardTitle className="text-xl mb-4">{event.title}</CardTitle>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <Activity size={18} />
+                          <span>Status:</span>
+                        </div>
+                        <span className="font-medium">{event.EventStatus}</span>
                       </div>
-                      <span className="font-medium">{event.EventStatus}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Calendar size={18} />
-                        <span>Date:</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <Calendar size={18} />
+                          <span>Date:</span>
+                        </div>
+                        <span className="font-medium">{moment(event.date).format("DD MMMM YYYY")}</span>
                       </div>
-                      <span className="font-medium">{moment(event.date).format("DD MMMM YYYY")}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Clock size={18} />
-                        <span>Time:</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <Clock size={18} />
+                          <span>Time:</span>
+                        </div>
+                        <span className="font-medium">{event.time}</span>
                       </div>
-                      <span className="font-medium">{event.time}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <MapPin size={18} />
-                        <span>Location:</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <MapPin size={18} />
+                          <span>Location:</span>
+                        </div>
+                        <span className="font-medium">{event.location}</span>
                       </div>
-                      <span className="font-medium">{event.location}</span>
+                      <Button variant="destructive" className="w-full mt-4" onClick={() => leaveEvent(event.title)}>
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Leave Event
+                      </Button>
                     </div>
-                    <Button 
-                      variant="destructive"
-                      className="w-full mt-4"
-                      onClick={() => leaveEvent(event.title)}
-                    >
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Leave Event
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
-        </div>
-      ):(
-        <h1 className="text-center">events are empty</h1>
-      )}
-    </section>
+        ) : (
+          <h1 className="text-center text-xl text-gray-500">No events joined yet</h1>
+        )}
+      </section>
 
-
-
-
+      {/* Edit Profile Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -401,33 +478,18 @@ const Dashboard = () => {
                     alt="Preview"
                     className="w-16 h-16 rounded-full object-cover"
                   />
-                  <Input
-                    name="ProfileImage"
-                    type="file"
-                    onChange={handleChange}
-                    className="flex-1"
-                  />
+                  <Input name="ProfileImage" type="file" onChange={handleChange} className="flex-1" />
                 </div>
               </div>
 
               <div>
                 <Label>Bio</Label>
-                <Input
-                  name="bio"
-                  value={formData.bio}
-                  onChange={handleChange}
-                  className="mt-2"
-                />
+                <Input name="bio" value={formData.bio} onChange={handleChange} className="mt-2" />
               </div>
 
               <div>
                 <Label>Location</Label>
-                <Input
-                  name="location"
-                  value={formData.location}
-                  onChange={handleChange}
-                  className="mt-2"
-                />
+                <Input name="location" value={formData.location} onChange={handleChange} className="mt-2" />
               </div>
 
               <div>
@@ -454,7 +516,7 @@ const Dashboard = () => {
         </DialogContent>
       </Dialog>
     </div>
-  );
-};
+  )
+}
 
-export default Dashboard;
+export default Dashboard

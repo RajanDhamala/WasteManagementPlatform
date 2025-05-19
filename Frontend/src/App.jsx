@@ -28,6 +28,7 @@ import AboutUs from "./MainSections/AboutPage";
 import CreateReport from "./MainSections/CreateReport";
 import QrCode from "./MainSections/QrCode";
 import QrGetter from "./MainSections/QrGetter";
+import ProtectedRoute from "./Authencation/AuthControl";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -72,7 +73,7 @@ const App = () => {
           <Suspense fallback={<Loader />}>
             <Routes>
               <Route path="/" element={<LandingPage />} />
-              <Route path="/profile" element={<Dashboard />} />
+              <Route path="/profile" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/events" element={<EventSection />} />

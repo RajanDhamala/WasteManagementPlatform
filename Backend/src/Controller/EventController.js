@@ -7,6 +7,7 @@ import User from '../Schema/User.js'
 import Review from '../Schema/Review.js'
 import ApiError from '../Utils/ApiError.js'
 import { Redisclient } from '../Utils/RedisUtil.js'
+import axios from 'axios';
 
 dotenv.config()
 
@@ -100,45 +101,63 @@ dotenv.config()
 });
 
 
-  const LoadEvents = asyncHandler(async (req, res) => {
+const LoadEvents = asyncHandler(async (req, res) => {
     try {
-        const { filter } = req.query;
-        console.log("Filter:", filter);
+        const { filter = 'all', page = 1, limit = 10 } = req.params;
+        const parsedPage = parseInt(page);
+        const parsedLimit = parseInt(limit);
 
         let matchStage = {};
         let sortStage = { date: 1 };
-        let sampleStage = null; 
 
+        // Configure filter conditions
         switch (filter) {
             case "latest":
-                sortStage = { date: 1 }; 
+                sortStage = { date: -1 }; // Changed to -1 for latest first
                 break;
             case "oldest":
-                sortStage = { date: -1 }; 
+                sortStage = { date: 1 };
                 break;
             case "completed":
-                matchStage = { EventStatus: "completed" }; 
+                matchStage = { EventStatus: "completed" };
                 break;
             case "pending":
                 matchStage = { EventStatus: "pending" };
-                break;
-            case "all":
-                sampleStage = { $sample: { size: 10 } }; 
                 break;
             default:
                 break;
         }
 
-        const cacheKey = `events:${filter || "default"}`;
-
+        // Create cache key
+        const cacheKey = `events:${filter}:page-${parsedPage}:limit-${parsedLimit}`;
         const cachedData = await Redisclient.json.get(cacheKey);
+        
         if (cachedData) {
             console.log("Returning Cached Data");
-            return res.send(new ApiResponse(200, "Events Loaded Successfully (Cached)", cachedData));
+            return res.status(200).json({
+                statusCode: 200,
+                message: "Events Loaded Successfully (Cached)",
+                data: {
+                    events: cachedData.events,
+                    totalEvents: cachedData.totalEvents,
+                    currentPage: cachedData.currentPage,
+                    totalPages: cachedData.totalPages,
+                    hasMore: cachedData.hasMore
+                }
+            });
         }
 
-        const pipeline = [
-            { $match: matchStage }, 
+        // Get total count first
+        const totalEvents = await Event.countDocuments(matchStage);
+        const totalPages = Math.ceil(totalEvents / parsedLimit);
+        const skip = (parsedPage - 1) * parsedLimit;
+
+        // Main query with pagination
+        const events = await Event.aggregate([
+            { $match: matchStage },
+            { $sort: sortStage },
+            { $skip: skip },
+            { $limit: parsedLimit },
             {
                 $project: {
                     _id: 1,
@@ -149,29 +168,38 @@ dotenv.config()
                     time: 1,
                     location: 1,
                     participantCount: { $size: "$Participants" },
-                },
-            },
-        ];
+                }
+            }
+        ]);
 
-        if (sampleStage) {
-            pipeline.push(sampleStage); 
-        } else {
-            pipeline.push({ $sort: sortStage }, { $limit: 10 }); 
-        }
+        const responseData = {
+            events,
+            totalEvents,
+            currentPage: parsedPage,
+            totalPages,
+            hasMore: parsedPage < totalPages
+        };
 
-        const Events = await Event.aggregate(pipeline);
-        console.log("Filtered Events:", Events);
+        // Cache the response
+        await Redisclient.json.set(cacheKey, "$", responseData);
+        await Redisclient.expire(cacheKey, 300); // 5 minutes cache
 
-        await Redisclient.json.set(cacheKey, "$", Events);
-        await Redisclient.expire(cacheKey, 300); 
-
-        return res.send(new ApiResponse(200, "Events Loaded Successfully", Events));
+        return res.status(200).json({
+            statusCode: 200,
+            message: "Events Loaded Successfully",
+            data: responseData
+        });
 
     } catch (err) {
-        console.log("Error in Load Events", err);
-        return res.status(500).send(new ApiResponse(500, "Internal Server Error"));
+        console.error("Error in Load Events:", err);
+        return res.status(500).json({
+            statusCode: 500,
+            message: "Internal Server Error",
+            error: err.message
+        });
     }
 });
+
 
   
   const joinEvent = asyncHandler(async (req, res) => {
@@ -367,6 +395,93 @@ const ClearALlReviews=asyncHandler(async(req,res)=>{
     return res.send(new ApiResponse(200,"All Reviews Removed Successfully",null));
 })
 
+const fetchEvents = async ({ filter = 'all', page = 1, limit = 8 }) => {
+    try {
+        const response = await axios.get(
+            `${import.meta.env.VITE_BASE_URL}event/loadevents/${filter}/${page}/${limit}`,
+            { withCredentials: true }
+        );
+
+        if (response.data.statusCode === 200) {
+            return {
+                events: response.data.data.events,
+                totalEvents: response.data.data.totalEvents,
+                currentPage: response.data.data.currentPage,
+                totalPages: response.data.data.totalPages,
+                hasMore: response.data.data.hasMore
+            };
+        }
+        throw new Error(response.data.message);
+    } catch (error) {
+        throw new Error(error.response?.data?.message || 'Failed to fetch events');
+    }
+};
+
+const HomeEvents = asyncHandler(async (req, res) => {
+  try {
+    const cachedData = await Redisclient.json.get('HomeEvents');
+    if (cachedData) {
+      console.log("Returning from Redis cache");
+      return res.send(cachedData);
+    }
+
+    // Get priority events with participant count
+    const priorityEvents = await Event.aggregate([
+      { $match: { priority: true } },
+      {
+        $project: {
+          _id: 1,
+          title: 1,
+          time: 1,
+          date: 1,
+          location: 1,
+          EventStatus: 1,
+          EventImg: 1,
+          participantCount: { $size: "$Participants" }
+        }
+      },
+      { $limit: 4 }
+    ]);
+
+    const count = priorityEvents.length;
+
+    let additionalEvents = [];
+    if (count < 4) {
+      additionalEvents = await Event.aggregate([
+        { $match: { priority: { $ne: true } } },
+        { $sample: { size: 4 - count } },
+        {
+          $project: {
+            _id: 1,
+            title: 1,
+            time: 1,
+            date: 1,
+            location: 1,
+            EventStatus: 1,
+            EventImg: 1,
+            participantCount: { $size: "$Participants" }
+          }
+        }
+      ]);
+    }
+
+    const finalEvents = [...priorityEvents, ...additionalEvents];
+
+    // Cache in Redis for 5 minutes (300 seconds)
+    await Redisclient.json.set('HomeEvents', '$', finalEvents);
+    await Redisclient.expire('HomeEvents', 300);
+
+    return res.send(finalEvents);
+
+  } catch (error) {
+    console.error("Error fetching events:", error);
+    return res.status(500).json({ message: "Failed to load home events" });
+  }
+});
+
+
+
+
   
 export {
     EventForm,
@@ -378,5 +493,7 @@ export {
     SubscribeEvent,
     AddReview,
     RemoveReview,
-    ClearALlReviews
+    ClearALlReviews,
+    fetchEvents,
+    HomeEvents
 }

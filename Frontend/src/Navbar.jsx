@@ -1,26 +1,67 @@
-import { useState,useEffect,useRef } from "react";
-import { Link } from "react-router-dom";
-import { Calendar, Users, X, Home, LogIn, UserPlus, ChevronUp } from "lucide-react";
-import { AnimatePresence, motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { useState, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { 
+  Calendar, 
+  Users, 
+  X, 
+  Home, 
+  LogIn, 
+  UserPlus, 
+  ChevronLeft, 
+  ChevronRight,
+  Menu,
+  User,
+  Settings,
+  LogOut
+} from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import axios from "axios";
-import { createPortal } from "react-dom";
+import useUserContext from "./hooks/useUserContext";
 
 const Navbar = () => {
+  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const {CurrentUser}=useUserContext()
+  console.log(CurrentUser)
+  // Menu items configuration
   const menuItems = [
     { name: "Home", path: "/", icon: Home },
     { name: "Events", path: "/events", icon: Calendar },
     { name: "Community", path: "/community", icon: Users },
-    { name: "Profile", path: "/profile", icon: Users },  // Always available
-    { name: "Login", path: "/login", icon: LogIn },      // For non-logged-in users
-    { name: "Register", path: "/register", icon: UserPlus }  // For non-logged-in users
+    { name: "Settings", path: "/settings", icon: Settings },
+  ];
+  
+  const authItems = [
+    { name: "Profile", path: "/profile", icon: User },
+    { name: "Login", path: "/login", icon: LogIn },
+    { name: "Register", path: "/register", icon: UserPlus }
   ];
 
+  // Check if a menu item is active
+  const isActive = (path) => {
+    if (path === "/" && location.pathname === "/") return true;
+    if (path !== "/" && location.pathname.startsWith(path)) return true;
+    return false;
+  };
+
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+
+  const toggleSidebar = () => {
+    setIsCollapsed(!isCollapsed);
+  };
+
+  // Logout function
   const LogoutUser = async () => {
     try {
       const response = await axios.get("http://localhost:8000/user/logout", {
         withCredentials: true,
       });
-      if (response.data.statusCode === "200") {
+      console.log(response)
+      if (response.status =="200") {
         window.location.reload();
       }
     } catch (err) {
@@ -29,169 +70,256 @@ const Navbar = () => {
   };
 
   return (
-    // Rendering the Navbar inside a React Portal
-    <NavbarPortal>
-      <FloatingDock items={menuItems} onLogout={LogoutUser} />
-    </NavbarPortal>
-  );
-};
-
-// React Portal component
-const NavbarPortal = ({ children }) => {
-  const [portalRoot, setPortalRoot] = useState(null);
-
-  useEffect(() => {
-    const element = document.createElement("div");
-    element.id = "navbar-portal-root";
-    document.body.appendChild(element);
-    setPortalRoot(element);
-
-    return () => {
-      if (element.parentNode) {
-        element.parentNode.removeChild(element);
-      }
-    };
-  }, []);
-
-  return portalRoot ? createPortal(children, portalRoot) : null;
-};
-
-// FloatingDock Component (for both Mobile and Desktop)
-const FloatingDock = ({ items, onLogout }) => {
-  return (
-    <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 flex justify-center items-center z-50  max-w-[90%] rounded-xl shadow-lg">
-      {/* Mobile Dock */}
-      <MobileDock items={items} onLogout={onLogout} />
-
-      {/* Desktop Dock */}
-      <DesktopDock items={items} onLogout={onLogout} />
-    </div>
-  );
-};
-
-const MobileDock = ({ items, onLogout }) => {
-  const [open, setOpen] = useState(false);
-  
-  return (
-    <div className="block md:hidden relative">
-      {/* Mobile Menu */}
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            layoutId="mobile-nav"
-            className="absolute bottom-full mb-2 w-full flex flex-col items-center gap-2"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+    <>
+      {/* Mobile Top Navbar */}
+      <motion.div 
+        className="fixed top-0 left-0 right-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm shadow-lg z-50 flex items-center justify-between px-4 h-16 md:hidden"
+        initial={{ y: -100 }}
+        animate={{ y: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      >
+        <div className="flex items-center">
+          
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <Link to="/profile" className="w-10 h-10 rounded-lg bg-gray-100/80 dark:bg-gray-800/80 backdrop-blur-sm flex items-center justify-center shadow-md">
+            <User className="h-5 w-5 text-green-600" />
+          </Link>
+          
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={toggleMobileMenu}
+            className="w-10 h-10 rounded-lg bg-green-600 flex items-center justify-center shadow-md hover:bg-green-700 transition-colors"
           >
-            {items.map((item, idx) => (
-              <motion.div
-                key={item.name}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                transition={{ delay: (items.length - 1 - idx) * 0.05 }}
-              >
-                <Link 
-                  to={item.path} 
-                  className="h-10 w-10 rounded-full bg-gray-50 dark:bg-neutral-900 shadow-md flex items-center justify-center"
-                  onClick={() => setOpen(false)}
-                >
-                  <item.icon className="h-5 w-5 text-green-600" />
-                </Link>
-              </motion.div>
-            ))}
-            <button 
-              onClick={() => {
-                onLogout();
-                setOpen(false);
-              }} 
-              className="h-10 w-10 rounded-full bg-red-500 shadow-md flex items-center justify-center"
-            >
+            {mobileMenuOpen ? (
               <X className="h-5 w-5 text-white" />
-            </button>
+            ) : (
+              <Menu className="h-5 w-5 text-white" />
+            )}
+          </motion.button>
+        </div>
+      </motion.div>
+
+      {/* Mobile Menu Drawer */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            className="fixed top-16 right-4 w-72 max-h-[80vh] bg-white/80 dark:bg-gray-900/80 backdrop-blur-md z-40 overflow-hidden rounded-2xl shadow-xl border border-gray-200/20 dark:border-gray-700/20 md:hidden"
+            initial={{ opacity: 0, scale: 0.95, x: 20 }}
+            animate={{ opacity: 1, scale: 1, x: 0 }}
+            exit={{ opacity: 0, scale: 0.95, x: 20 }}
+            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+          >
+            <div className="overflow-y-auto max-h-[calc(80vh-4rem)]">
+              <div className="p-3">
+                <div className="rounded-xl overflow-hidden bg-gradient-to-br from-green-50/50 to-emerald-50/50 dark:from-gray-800/30 dark:to-gray-900/30 backdrop-blur-sm p-4 mb-4 shadow-md">
+                  <div className="flex items-center space-x-3">                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-green-600/90 backdrop-blur-sm flex items-center justify-center text-white text-xl font-bold shadow-lg">
+                      {CurrentUser?.ProfileImage ? (
+                        <img src={CurrentUser.ProfileImage} alt={CurrentUser.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="h-8 w-8" />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">{CurrentUser?.name || 'Guest'}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">User</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-1 mb-4">
+                  <h3 className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold px-2 mb-2">Navigation</h3>
+                  {menuItems.map((item) => (
+                    <div key={item.name}>
+                      <Link
+                        to={item.path}
+                        className={`flex items-center py-2.5 px-4 rounded-xl transition-all ${
+                          isActive(item.path) 
+                            ? "bg-green-600/90 text-white shadow-md backdrop-blur-sm" 
+                            : "hover:bg-gray-100/60 dark:hover:bg-gray-800/60 text-gray-700 dark:text-gray-200 hover:shadow-md"
+                        }`}
+                        onClick={() => {
+                          console.log(`Navigating to: ${item.path}`); // Debug log
+                          navigate(item.path);
+                          setMobileMenuOpen(false);
+                        }}
+                      >
+                        <item.icon className={`h-5 w-5 ${isActive(item.path) ? "text-white" : "text-green-600 dark:text-green-400"}`} />
+                        <span className="ml-3 font-medium">{item.name}</span>
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="space-y-1">
+                  <h3 className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold px-2 mb-2">Account</h3>
+                  {authItems.map((item) => (
+                    <div key={item.name}>
+                      <Link
+                        to={item.path}
+                        className={`flex items-center py-3 px-4 rounded-xl transition-all ${
+                          isActive(item.path) 
+                            ? "bg-green-600/90 text-white shadow-md backdrop-blur-sm" 
+                            : "hover:bg-gray-100/80 dark:hover:bg-gray-800/80 text-gray-700 dark:text-gray-200 hover:shadow-md"
+                        }`}
+                        onClick={() => {
+                          console.log(`Navigating to: ${item.path}`); // Debug log
+                          navigate(item.path);
+                          setMobileMenuOpen(false);
+                        }}
+                      >
+                        <item.icon className={`h-5 w-5 ${isActive(item.path) ? "text-white" : "text-green-600 dark:text-green-400"}`} />
+                        <span className="ml-3 font-medium">{item.name}</span>
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="p-3 border-t border-gray-200/20 dark:border-gray-700/20 bg-gray-50/50 dark:bg-gray-800/50 backdrop-blur-sm">
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    LogoutUser();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full py-2.5 px-4 bg-red-500/90 hover:bg-red-600/90 text-white rounded-lg flex items-center justify-center shadow-md backdrop-blur-sm transition-all hover:shadow-lg"
+                >
+                  <LogOut className="h-5 w-5 mr-2" />
+                  <span className="font-medium">Logout</span>
+                </motion.button>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
-      
-      {/* Mobile Toggle Button */}
-      <motion.button 
-        onClick={() => setOpen(!open)}
-        className="h-12 w-12 rounded-full bg-green-600 shadow-lg flex items-center justify-center"
-        whileTap={{ scale: 0.9 }}
+
+      {/* Desktop Sidebar */}
+      <motion.div
+        className={`fixed top-0 left-0 h-full bg-white dark:bg-gray-900 shadow-md z-50  flex-col hidden md:flex
+          ${isCollapsed ? 'w-16' : 'w-64'}`}
+        initial={{ x: -100 }}
+        animate={{ x: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
       >
-        <ChevronUp className="h-6 w-6 text-white" />
-      </motion.button>
-    </div>
-  );
-};
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
+          <motion.button
+            onClick={toggleSidebar}
+            className={`${isCollapsed ? 'w-12 h-12' : 'w-10 h-10'} rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition-all`}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            {isCollapsed ? (
+              <ChevronRight className="h-6 w-6 text-gray-600 dark:text-gray-300" />
+            ) : (
+              <ChevronLeft className="h-6 w-6 text-gray-600 dark:text-gray-300" />
+            )}
+          </motion.button>
+        </div>
 
-const DesktopDock = ({ items, onLogout }) => {
-  let mouseX = useMotionValue(Infinity);
-  
-  return (
-    <motion.div
-      onMouseMove={(e) => mouseX.set(e.pageX)}
-      onMouseLeave={() => mouseX.set(Infinity)}
-      className="hidden md:flex h-16 gap-4 items-end rounded-2xl bg-gray-50 dark:bg-neutral-900 px-4 pb-3 shadow-lg"
-    >
-      {items.map((item) => (
-        <IconContainer mouseX={mouseX} key={item.name} {...item} />
-      ))}
-      <button 
-        onClick={onLogout} 
-        className="h-12 w-12 rounded-full bg-red-500 flex items-center justify-center transition-transform hover:scale-105"
-      >
-        <X className="h-6 w-6 text-white" />
-      </button>
-    </motion.div>
-  );
-};
+        <div className="flex-grow overflow-y-auto">
+          <div className="p-3">
+            {menuItems.map((item) => (
+              <Link
+                key={item.name}
+                to={item.path}
+                onClick={(e) => {
+                  if (item.path === location.pathname) {
+                    e.preventDefault();
+                    return;
+                  }
+                }}
+                className={`flex items-center ${
+                  isCollapsed ? 'justify-center' : 'justify-start'
+                } ${isCollapsed ? 'p-2' : 'py-3 px-4'} rounded-lg transition-all mb-1 group relative hover:shadow-md ${
+                  isActive(item.path)
+                    ? 'bg-green-600 text-white'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+              >
+                <item.icon className={`${isCollapsed ? 'h-8 w-8' : 'h-6 w-6'} ${
+                  isActive(item.path) ? 'text-white' : 'text-green-600'
+                } transition-all`} />
+                {!isCollapsed && (
+                  <motion.span
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className={`ml-3 whitespace-nowrap ${
+                      isActive(item.path) ? 'text-white' : 'text-gray-700 dark:text-gray-200'
+                    }`}
+                  >
+                    {item.name}
+                  </motion.span>
+                )}
+              </Link>
+            ))}
 
-function IconContainer({ mouseX, name, icon: Icon, path }) {
-  let ref = useRef(null);
-  let distance = useTransform(mouseX, (val) => {
-    let bounds = ref.current?.getBoundingClientRect() ?? { x: 0, width: 0 };
-    return val - bounds.x - bounds.width / 2;
-  });
+            <div className="h-px bg-gray-200 dark:bg-gray-800 my-3" />
 
-  let sizeTransform = useTransform(distance, [-150, 0, 150], [40, 80, 40]);
-  let iconSizeTransform = useTransform(distance, [-150, 0, 150], [20, 40, 20]);
-  let size = useSpring(sizeTransform, { mass: 0.1, stiffness: 150, damping: 12 });
-  let iconSize = useSpring(iconSizeTransform, { mass: 0.1, stiffness: 150, damping: 12 });
+            {authItems.map((item) => (
+              <Link
+                key={item.name}
+                to={item.path}
+                className={`flex items-center ${
+                  isCollapsed ? 'justify-center' : 'justify-start'
+                } ${isCollapsed ? 'p-2' : 'py-3 px-4'} rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all mb-1 group relative hover:shadow-md`}
+              >
+                <item.icon className={`${isCollapsed ? 'h-8 w-8' : 'h-6 w-6'} text-green-600 transition-all`} />
+                {!isCollapsed && (
+                  <motion.span
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="ml-3 text-gray-700 dark:text-gray-200 whitespace-nowrap"
+                  >
+                    {item.name}
+                  </motion.span>
+                )}
+              </Link>
+            ))}
+          </div>
+        </div>
 
-  const [hovered, setHovered] = useState(false);
-
-  return (
-    <Link 
-      to={path} 
-      ref={ref} 
-      onMouseEnter={() => setHovered(true)} 
-      onMouseLeave={() => setHovered(false)}
-      className="group"
-    >
-      <motion.div 
-        style={{ width: size, height: size }} 
-        className="aspect-square rounded-full bg-gray-200 dark:bg-neutral-800 flex items-center justify-center relative transition-colors hover:bg-gray-300 dark:hover:bg-neutral-700"
-      >
-        <AnimatePresence>
-          {hovered && (
-            <motion.div 
-              initial={{ opacity: 0, y: 10, x: "-50%" }} 
-              animate={{ opacity: 1, y: 0, x: "-50%" }} 
-              exit={{ opacity: 0, y: 2, x: "-50%" }} 
-              className="px-2 py-0.5 whitespace-pre rounded-md bg-gray-100 border dark:bg-neutral-800 text-xs absolute left-1/2 -translate-x-1/2 -top-8 z-10"
-            >
-              {name}
-            </motion.div>
-          )}
-        </AnimatePresence>
-        <motion.div style={{ width: iconSize, height: iconSize }}>
-          <Icon className="text-green-600" />
-        </motion.div>
+        <div className="border-t border-gray-200 dark:border-gray-800 p-2">
+          <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-start'}`}>            <div className={`${isCollapsed ? 'w-12 h-12' : 'w-10 h-10'} rounded-full overflow-hidden transition-all`}>
+              {CurrentUser?.ProfileImage ? (
+                <img src={CurrentUser.ProfileImage} alt={CurrentUser.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center">
+                  <User className={`${isCollapsed ? 'h-6 w-6' : 'h-5 w-5'} text-gray-700 dark:text-gray-300 transition-all`} />
+                </div>
+              )}
+            </div>
+            {!isCollapsed && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="ml-3"
+              >
+                <div className="font-medium text-gray-700 dark:text-gray-200">{CurrentUser?.name || 'Guest'}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">User</div>
+              </motion.div>
+            )}
+          </div>
+          <motion.button
+            onClick={LogoutUser}
+            className={`mt-3 bg-red-500 hover:bg-red-600 text-white rounded-lg 
+              ${isCollapsed ? 'w-10 h-10 flex items-center justify-center mx-auto' : 'w-full py-2'}`}
+            whileTap={{ scale: 0.95 }}
+          >
+            <X className={`h-4 w-4 ${isCollapsed ? '' : 'mr-2 inline'}`} />
+            {!isCollapsed && <span>Logout</span>}
+          </motion.button>
+        </div>
       </motion.div>
-    </Link>
+
+      {/* Content area */}
+      <div className="pt-16 md:pt-4 md:ml-16 lg:ml-16 transition-all duration-300" style={{ marginLeft: isCollapsed ? 'calc(4rem + 1px)' : 'calc(16rem + 1px)' }}>
+        {/* Your page content */}
+      </div>
+    </>
   );
-}
+};
 
 export default Navbar;

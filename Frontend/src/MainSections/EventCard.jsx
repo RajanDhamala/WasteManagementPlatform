@@ -23,12 +23,10 @@ const EventCard = ({
   const { setAlert } = useAlert();
   const encodedTitle = title;
 
-  // Memoized event image to prevent unnecessary re-renders
   const currentImage = useMemo(() => EventImg[currentImageIndex] || "/images/default-event.jpg", [currentImageIndex, EventImg]);
 
   const queryClient = useQueryClient();
-
-  // Mutation for joining the event
+  
   const joinEventMutation = useMutation({
     mutationFn: async (_id) => {
       const { data } = await axios.post(

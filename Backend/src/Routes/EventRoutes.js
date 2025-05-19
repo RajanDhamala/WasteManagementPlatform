@@ -1,5 +1,5 @@
 import express from 'express'
-import {EventForm,Eventinfo,LoadEvents,joinEvent,removeParticipation,ReportEvent,SubscribeEvent,AddReview,RemoveReview,ClearALlReviews} from '../Controller/EventController.js'
+import {EventForm,Eventinfo,LoadEvents,joinEvent,removeParticipation,ReportEvent,SubscribeEvent,AddReview,RemoveReview,ClearALlReviews,HomeEvents} from '../Controller/EventController.js'
 import upload from '../Middleware/MulterImg.js'
 import AuthMiddleware from '../Middleware/JwtMiddleware.js'
 import {rateLimit} from 'express-rate-limit'
@@ -21,7 +21,7 @@ EventRouter.post('/eventform',eventlimit,AuthMiddleware,upload.array('images',3)
 
 EventRouter.get('/eventinfo/:title',Eventinfo)
 
-EventRouter.get('/loadevents',LoadEvents)
+EventRouter.get('/loadevents/:filter/:page/:limit',LoadEvents)
 
 EventRouter.post('/joinEvent',AuthMiddleware,joinEvent)
 // rateLimit({windowMs:24 * 60 * 60 * 1000,max:3,message:'cannnot join multiple events'}),
@@ -37,6 +37,8 @@ EventRouter.post('/addreview', ReviewImg.single('reviewImg'), AuthMiddleware, Ad
 EventRouter.delete('/removereview/:reviewId',AuthMiddleware,RemoveReview)
 
 EventRouter.get('/clearReviews',ClearALlReviews)
+
+EventRouter.get('/home',HomeEvents)
 
 export default EventRouter
 

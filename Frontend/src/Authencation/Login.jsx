@@ -53,6 +53,7 @@ const Login = () => {
                 setTimeout(() => {
                     setisLoggedIn(true);
                     setCurrentUser(response.data.data);
+                    navigate('/')
                 }, 4000);
             } else {
                 setAlert({
