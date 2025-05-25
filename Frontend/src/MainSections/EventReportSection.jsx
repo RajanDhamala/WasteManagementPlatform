@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, Clock, MapPin, Users, User, MessageSquare, Image, MessageCircle, ThumbsUp, Send } from 'lucide-react';
-import useUserContext from '@/hooks/useUserContext';
+import useStore from '@/ZustandStore/UserStore';
 import { useParams } from "react-router-dom";
 import axios from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -24,7 +24,7 @@ const EventReportSection = () => {
   const [showReplyInput, setShowReplyInput] = useState({});
   const [EventID, setEventId] = useState();
 
-  const { CurrentUser } = useUserContext();
+  const CurrentUser=useStore((state)=>state.CurrentUser)
   const queryClient = useQueryClient();
   const Navigate = useNavigate();
 

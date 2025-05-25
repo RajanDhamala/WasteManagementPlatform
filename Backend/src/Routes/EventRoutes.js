@@ -1,5 +1,5 @@
 import express from 'express'
-import {EventForm,Eventinfo,LoadEvents,joinEvent,removeParticipation,ReportEvent,SubscribeEvent,AddReview,RemoveReview,ClearALlReviews,HomeEvents} from '../Controller/EventController.js'
+import {EventForm,Eventinfo,LoadEvents,joinEvent,removeParticipation,ReportEvent,SubscribeEvent,AddReview,RemoveReview,ClearALlReviews,HomeEvents,ActiveEvents} from '../Controller/EventController.js'
 import upload from '../Middleware/MulterImg.js'
 import AuthMiddleware from '../Middleware/JwtMiddleware.js'
 import {rateLimit} from 'express-rate-limit'
@@ -39,6 +39,8 @@ EventRouter.delete('/removereview/:reviewId',AuthMiddleware,RemoveReview)
 EventRouter.get('/clearReviews',ClearALlReviews)
 
 EventRouter.get('/home',HomeEvents)
+
+EventRouter.get('/active',AuthMiddleware,ActiveEvents)
 
 export default EventRouter
 

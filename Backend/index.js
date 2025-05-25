@@ -3,39 +3,39 @@ import dotenv from 'dotenv';
 import ConnectDb from './src/Database/ConnectDb.js';
 import { Server } from 'socket.io';
 import http from 'http';
-import SocketConnection from './src/Utils/SocketConnection.js';
+import {SocketConnection} from './src/Utils/SocketConnection.js';
 import {connectRedis} from './src/Utils/RedisUtil.js'
 dotenv.config();
 
-let io;  
-
 const server = http.createServer(app);
-
-ConnectDb().then(() => {
-    io = new Server(server, {
-        cors: {
-            origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-            methods: ["GET", "POST"],
-            credentials: true,
-            allowedHeaders: ["Content-Type", "Authorization"],
-        },
-        transports: ['websocket', 'polling'],
-        pingTimeout: 60000,
-    });
-
-    SocketConnection(io);
-    connectRedis()
-
-    server.listen(process.env.PORT, () => {
-        console.log(`Server running on port ${process.env.PORT}`);
-    });
-}).catch((err) => {
-    console.error('Error connecting to the database:', err);
+const io = new Server(server, {
+    cors: {
+        origin: [process.env.FRONTEND_URL || 'http://localhost:5173', 'http://localhost:3000'],
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        credentials: true,
+        allowedHeaders: ["Content-Type", "Authorization"],
+    },
+    transports: ['websocket', 'polling'],
+    pingTimeout: 60000,
 });
+SocketConnection(io);
 
-export const getIo = () => {
-    if (!io) {
-        throw new Error("Socket.io is not initialized yet!");
+const startServer = async () => {
+    try {
+        await ConnectDb();
+        console.log('Database connected successfully');
+        
+        await connectRedis();
+        console.log('Redis connected successfully');
+        const PORT = process.env.PORT || 8000;
+        server.listen(PORT, () => {
+            console.log(`Server running on port ${PORT}`);
+        });
+    } catch (err) {
+        console.error('Error during server startup:', err);
     }
-    return io;
 };
+
+startServer();
+
+export const getIo = () => io;

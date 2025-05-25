@@ -11,8 +11,10 @@ import { RefreshCw } from "lucide-react";
 const fetchNews = async (scrap) => {
   const response = await axios.get(`${import.meta.env.VITE_BASE_URL}scrap/scrapnews`, {
     params: { scrap },
+  
   });
-  return response.data.data.news || [];
+  console.log(Array.isArray(response.data.data.news.news));
+  return response.data.data.news.news || [];
 };
 
 function ScrappedNews() {

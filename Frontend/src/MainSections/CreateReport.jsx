@@ -1,5 +1,3 @@
-"use client"
-
 import { useState, useRef, useCallback, memo } from "react"
 import { useQuery, useMutation } from "@tanstack/react-query"
 import axios from "axios"

@@ -4,8 +4,7 @@ import { motion } from "framer-motion";
 import { Leaf, Mail, Lock, Loader2 } from "lucide-react";
 import Confetti from 'react-confetti';
 import axios from "axios";
-import useUserContext from "../hooks/useUserContext";
-import { useAlert } from "@/UserContext/AlertContext"; 
+import useStore from "@/ZustandStore/UserStore";
 import Cookies from 'js-cookie';
 
 const Login = () => {
@@ -15,19 +14,22 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
     const [showConfetti, setShowConfetti] = useState(false);
 
-    const { setAlert } = useAlert(); 
+  const setAlert=useStore((state)=>state.setAlert)
 
     const navigate = useNavigate();
 
-    const { setisLoggedIn, setCurrentUser, isLoggedIn, CurrentUser } = useUserContext();
+    // Get setCurrentUser from Zustand store
+    const setCurrentUser = useStore((state) => state.setCurrentUser);
+
     useEffect(() => {
         const user = Cookies.get("CurrentUser");
         if (user) {
-          console.log("User:", user);
+            console.log("User:", user);
         } else {
-          console.log("No user found in cookies");
+            console.log("No user found in cookies");
         }
-      }, [isLoggedIn]);
+    }, []);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -38,36 +40,46 @@ const Login = () => {
             setLoading(false);
             return;
         }
+
         try {
             const response = await axios.post("http://localhost:8000/user/login", { email, password }, { withCredentials: true });
             console.log(response.data);
             
             if (response.data.statusCode == '200') {
                 console.log("Login Successful:", response.data);
+                
+                // Set the current user in Zustand store
+                setCurrentUser(response.data.data);
+                
+                // Store user data in cookies for persistence
+                Cookies.set("CurrentUser", JSON.stringify(response.data.data), { expires: 7 });
+                
                 setShowConfetti(true);
-                 setAlert({
+                setAlert({
                     title: "Login Successful",
                     message: "You are now logged in.",
                     type: "success",
                 });
+
+                // Navigate after a short delay to show confetti
                 setTimeout(() => {
-                    setisLoggedIn(true);
-                    setCurrentUser(response.data.data);
-                    navigate('/')
-                }, 4000);
+                    navigate('/');
+                }, 2000);
             } else {
+                setError(response.data.message || "Login failed");
                 setAlert({
                     title: "Login Failed",
-                    message: response.data.message,
+                    message: response.data.message || "Login failed",
                     type: "error",
                 });
             }
         } catch (error) {
-            console.error(error);
-            setError("Invalid email or password.");
+            console.error("Login error:", error);
+            const errorMessage = error.response?.data?.message || "Invalid email or password.";
+            setError(errorMessage);
             setAlert({
                 title: "Login Failed",
-                message: "Invalid email or password.",
+                message: errorMessage,
                 type: "error",
             });
         } finally {
@@ -122,7 +134,7 @@ const Login = () => {
                             <div className="relative">
                                 <Mail className="absolute left-3 top-3.5 h-5 w-5 text-[#8FBC8F]" />
                                 <input
-                                autoComplete="username"
+                                    autoComplete="username"
                                     id="email"
                                     type="email"
                                     value={email}
@@ -141,7 +153,7 @@ const Login = () => {
                             <div className="relative">
                                 <Lock className="absolute left-3 top-3.5 h-5 w-5 text-[#8FBC8F]" />
                                 <input
-                                autoComplete="current-password"
+                                    autoComplete="current-password"
                                     id="password"
                                     type="password"
                                     value={password}

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Send, ShieldCheck, BadgeCheck, UserCircle } from 'lucide-react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { useAlert } from '@/UserContext/AlertContext';
+import useStore from '@/ZustandStore/UserStore';
 
 function VerifyUser() {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -13,7 +13,7 @@ function VerifyUser() {
   const otpInputRefs = useRef([]);
   const navigate = useNavigate();
 
-  const {setAlert}=useAlert();
+ const setAlert=useStore((state)=>state.setAlert)
 
   const requestOtp = async () => {
     setError('');

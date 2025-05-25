@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useAlert } from '@/UserContext/AlertContext';
 import { Check, X, Star } from 'lucide-react';
 import axios from 'axios';
 import ThreeDotMenu from '@/AiComponnets/ThreeDots';
@@ -9,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import useUserContext from '@/hooks/useUserContext';
+import useStore from '@/ZustandStore/UserStore';
 
 const ReviewDine = ({ event }) => {
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -21,7 +20,7 @@ const ReviewDine = ({ event }) => {
   const { setAlert } = useAlert();
   const queryClient = useQueryClient();
 
-  const {CurrentUser}=useUserContext();
+  const CurrentUser=useStore((state)=>state.CurrentUser)
 
   const addReviewMutation = useMutation({
     mutationFn: async () => {

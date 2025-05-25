@@ -16,16 +16,18 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import axios from "axios";
-import useUserContext from "./hooks/useUserContext";
+import useStore from "./ZustandStore/UserStore";
 
 const Navbar = () => {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const {CurrentUser}=useUserContext()
+  const CurrentUser=useStore((state)=>state.CurrentUser)
+  const clearCurrentUser=useStore((state)=>state.clearCurrentUser)
   console.log(CurrentUser)
-  // Menu items configuration
+
+
   const menuItems = [
     { name: "Home", path: "/", icon: Home },
     { name: "Events", path: "/events", icon: Calendar },
@@ -39,7 +41,6 @@ const Navbar = () => {
     { name: "Register", path: "/register", icon: UserPlus }
   ];
 
-  // Check if a menu item is active
   const isActive = (path) => {
     if (path === "/" && location.pathname === "/") return true;
     if (path !== "/" && location.pathname.startsWith(path)) return true;
@@ -54,7 +55,7 @@ const Navbar = () => {
     setIsCollapsed(!isCollapsed);
   };
 
-  // Logout function
+
   const LogoutUser = async () => {
     try {
       const response = await axios.get("http://localhost:8000/user/logout", {
@@ -62,7 +63,9 @@ const Navbar = () => {
       });
       console.log(response)
       if (response.status =="200") {
+        clearCurrentUser()
         window.location.reload();
+        
       }
     } catch (err) {
       console.error(err, "Error logging out");

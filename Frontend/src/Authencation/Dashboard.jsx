@@ -8,11 +8,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { User, MapPin, Calendar, Settings, Camera, Activity, ChevronRight, LogOut, Coffee, Clock } from "lucide-react"
-import { useAlert } from "@/UserContext/AlertContext"
-
+import useStore from "@/ZustandStore/UserStore"
 
 const Dashboard = () => {
-  // State variables
   const [joinedEvents, setJoinedEvents] = useState([])
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -25,14 +23,12 @@ const Dashboard = () => {
   })
   const [preview, setPreview] = useState(null)
 
-  const { setAlert } = useAlert()
+const setAlert=useStore((state)=>state.setAlert)
 
-  // Fetch user data on component mount
   useEffect(() => {
     fetchUser()
   }, [])
 
-  // Function to fetch joined events
   const showJoinedEvents = async () => {
     try {
       const response = await axios.get(`${import.meta.env.VITE_BASE_URL}user/joinedevents`, {

@@ -1,10 +1,8 @@
 import React, { Suspense, useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import AlertContextProvider from "./UserContext/AlertContext";
 import Alert from "./AiComponnets/Alert";
 import Navbar from "./Navbar";
-import useUserContext from "./hooks/useUserContext";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import TanStack from "./TanStack";
 import {
@@ -27,8 +25,9 @@ import ChessBoard from "./ChessBoard";
 import AboutUs from "./MainSections/AboutPage";
 import CreateReport from "./MainSections/CreateReport";
 import QrCode from "./MainSections/QrCode";
-import QrGetter from "./MainSections/QrGetter";
+import ChatApp from "./MainSections/QrGetter";
 import ProtectedRoute from "./Authencation/AuthControl";
+import useStore from "./ZustandStore/UserStore";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -49,7 +48,7 @@ const Loader = () => {
 };
 
 const App = () => {
-  const { setCurrentUser, CurrentUser } = useUserContext();
+  const setCurrentUser=useStore((state)=>state.setCurrentUser)
 
   useEffect(() => {
     const user = Cookies.get("CurrentUser");
@@ -66,9 +65,8 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <ReactQueryDevtools initialIsOpen={false} />
-      <AlertContextProvider>
         <BrowserRouter>
-          <Navbar />
+        <Navbar/>
           <Alert />
           <Suspense fallback={<Loader />}>
             <Routes>
@@ -81,20 +79,17 @@ const App = () => {
               <Route path="/scrapnews" element={<ScrappedNews />} />
               <Route path="/forgot" element={<ForgotPassword />} />
               <Route path="/verify" element={<VerifyUser />} />
-              <Route path="/pagination" element={<Paginationme />} />
               <Route path="/community" element={<ComminitySection />} />
               <Route path="/tanstack" element={<TanStack />} />
-              <Route path="/eventreport/:title" element={<EventReportSection />} />
+              <Route path="/eventreport/:title" element={<ProtectedRoute><EventReportSection/></ProtectedRoute>} />
               <Route path="/compare" element={<ImageComparer />} />
-              <Route path="/chess" element={<ChessBoard />} />
               <Route path="/about" element={<AboutUs />} />
               <Route path='makereport' element={<CreateReport/>}></Route>
               <Route path={'scan'} element={<QrCode/>}> </Route>
-              <Route path={'qr'} element={<QrGetter/>}> </Route>
+              <Route path={'qr'} element={<ChatApp/>}> </Route>
             </Routes>
           </Suspense>
         </BrowserRouter>
-      </AlertContextProvider>
     </QueryClientProvider>
   );
 };

@@ -425,7 +425,6 @@ const HomeEvents = asyncHandler(async (req, res) => {
       return res.send(cachedData);
     }
 
-    // Get priority events with participant count
     const priorityEvents = await Event.aggregate([
       { $match: { priority: true } },
       {
@@ -466,8 +465,6 @@ const HomeEvents = asyncHandler(async (req, res) => {
     }
 
     const finalEvents = [...priorityEvents, ...additionalEvents];
-
-    // Cache in Redis for 5 minutes (300 seconds)
     await Redisclient.json.set('HomeEvents', '$', finalEvents);
     await Redisclient.expire('HomeEvents', 300);
 
@@ -479,10 +476,54 @@ const HomeEvents = asyncHandler(async (req, res) => {
   }
 });
 
+const ActiveEvents = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+  if (!userId) {
+    return res.status(404).send(new ApiError(404, 'Invalid request blocked'));
+  }
 
+  const events = await CacheJoinedEvent(userId);
+  return res.send(new ApiResponse(200, 'Received the active events list', events));
+});
 
+const CacheJoinedEvent = async (userId) => {
+  try {
+    const cachedData = await Redisclient.json.get(`JoinedEvents${userId}`);
+    if (cachedData) {
+      return cachedData;
+    }
 
-  
+    const user = await User.findById(userId).select('JoinedEvents');
+    if (!user?.JoinedEvents?.length) {
+      return [];
+    }
+
+    const events = await Event.aggregate([
+      {
+        $match: {
+          _id: { $in: user.JoinedEvents }
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          title: 1,
+          date: 1,
+          participantCount: { $size: '$Participants' }
+        }
+      }
+    ]);
+
+    await Redisclient.json.set(`JoinedEvents${userId}`, '.', events);
+    await Redisclient.expire(`JoinedEvents${userId}`, 300);
+
+    return events;
+  } catch (error) {
+    console.error('Error in CacheJoinedEvent:', error);
+    return [];
+  }
+};
+
 export {
     EventForm,
     Eventinfo,
@@ -495,5 +536,7 @@ export {
     RemoveReview,
     ClearALlReviews,
     fetchEvents,
-    HomeEvents
+    HomeEvents,
+    ActiveEvents,
+    CacheJoinedEvent
 }

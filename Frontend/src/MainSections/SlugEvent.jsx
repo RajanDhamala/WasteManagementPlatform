@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, Users, Clock, ChevronLeft, ChevronRight, LinkIcon, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAlert } from '@/UserContext/AlertContext';
+import useStore from '@/ZustandStore/UserStore';
 import ReviewDine from '../BreakingHai/ReviewDine';
 import axios from 'axios';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -21,7 +21,7 @@ function SlugEvent() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [otherReason, setOtherReason] = useState('');
-  const { setAlert } = useAlert();
+ const setAlert=useStore((state)=>state.setAlert)
   const queryClient = useQueryClient();
 
   const reportReasons = [

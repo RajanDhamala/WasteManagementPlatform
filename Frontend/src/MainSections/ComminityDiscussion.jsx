@@ -11,7 +11,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import Editdot from '../UtilsCOmps/EditDot';
-import  useUserContext from '../hooks/useUserContext';
+import useStore from '@/ZustandStore/UserStore';
 
 const CommunityDiscussion = () => {
   const [activeTab, setActiveTab] = useState('discussions');
@@ -26,9 +26,7 @@ const CommunityDiscussion = () => {
   const [editDiscussionId, setEditDiscussionId] = useState(null);
   const [editCommentId, setEditCommentId] = useState(null);
   const [editContent, setEditContent] = useState('');
-  const {CurrentUser}=useUserContext()
-  console.log(CurrentUser)
-
+  const CurrentUser=useStore((state)=>state.CurrentUser)
 
   const queryClient = useQueryClient();
 

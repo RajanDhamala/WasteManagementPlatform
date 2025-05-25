@@ -1,84 +1,84 @@
-import cookie from "cookie";
+import cookie from 'cookie';
+import { CacheJoinedEvent } from '../Controller/EventController.js';
 
 const connectedUsers = {};
-
-export function GetUsers() {
+function GetUsers() {
   return Object.values(connectedUsers);
 }
 
-const SocketConnection = (io) => {
-  io.on("connection", (socket) => {
+function SocketConnection(io) {
+  io.on("connection", async (socket) => {
     const rawCookies = socket.handshake.headers.cookie;
-    if (!rawCookies) {
-      console.warn("⚠️ No cookies found for socket:", socket.id);
-    }
-
     const parsedCookies = cookie.parse(rawCookies || "");
 
     let currentUser = null;
-    if (parsedCookies.CurrentUser) {
-      try {
-        currentUser = JSON.parse(parsedCookies.CurrentUser);
-      } catch (error) {
-        console.error("❌ Error parsing CurrentUser cookie:", error);
-      }
+    try {
+      currentUser = parsedCookies.CurrentUser
+        ? JSON.parse(parsedCookies.CurrentUser)
+        : null;
+    } catch (error) {
+      console.error("❌ Error parsing CurrentUser cookie:", error);
     }
 
- 
     const username = currentUser?.name || "Guest";
+    const userId = currentUser?._id;
+
     connectedUsers[socket.id] = {
       id: socket.id,
       user: username,
-      group: null,
+      groups: new Set(),
     };
 
-    console.log(`✅ New client connected: ${username} (ID: ${socket.id})`);
+    console.log(`New client connected: ${username} (ID: ${socket.id})`);
 
-    socket.emit("connected-users", GetUsers());
-
- 
-    socket.on("join-group", (groupName) => {
-      if (connectedUsers[socket.id]) {
-        if (connectedUsers[socket.id].group) {
-          socket.leave(connectedUsers[socket.id].group);
-          console.log(`${username} left group: ${connectedUsers[socket.id].group}`);
-        }
-
-        connectedUsers[socket.id].group = groupName;
-        socket.join(groupName);
-
-        console.log(`${username} joined group: ${groupName}`);
-        socket.emit("group-joined", { group: groupName });
+    const joinedEvents = await CacheJoinedEvent(userId);
+    joinedEvents.forEach((event, index) => {
+      const eventId = event._id?.toString?.() || event.id?.toString?.();
+      if (eventId) {
+        socket.join(eventId);
+        connectedUsers[socket.id].groups.add(eventId);
+        console.log(`📌 ${event.title} (Event ${index}) - Joined room: ${eventId}`);
       }
     });
 
- 
-    socket.on("send-group-message", ({ group, message }) => {
-      if (!group) {
-        console.error("❌ No group specified for message");
-        return;
-      }
+    console.log("🔗 Joined groups:", Array.from(connectedUsers[socket.id].groups));
 
-      console.log(`📩 Message from ${username} in ${group}:`, message);
-      socket.to(group).emit("group-message", { sender: username, message });
-    });
 
-    socket.on("leave-group", () => {
-      const userGroup = connectedUsers[socket.id]?.group;
-      if (userGroup) {
-        socket.leave(userGroup);
-        console.log(`${username} left group: ${userGroup}`);
-        connectedUsers[socket.id].group = null;
-        socket.emit("group-left");
-      }
-    });
 
+    
+    socket.on('Send-group-Message',async({message,sender,group,messageId})=>{
+      console.log('Msg:',message,'to',group,'by',sender,messageId);
+      socket.to(group).emit('Group-Message', {message,sender, group,timestamp: new Date().toISOString(),messageId
+});
+
+  socket.on('Is-Typing',async({isTyping,sender,group})=>{
+    console.log(sender,'isTyping',isTyping,'to',group)
+    socket.to(group).emit('Group-Typing',{isTyping,sender,group})
+  })
+
+    })
+
+    
     socket.on("disconnect", () => {
       console.log(`❌ Client disconnected: ${socket.id} (${username})`);
+
+      const userGroups = connectedUsers[socket.id]?.groups || new Set();
+      for (const group of userGroups) {
+        socket.to(group).emit("user-left-group", {
+          user: username,
+          id: socket.id,
+          group,
+        });
+      }
+
       delete connectedUsers[socket.id];
-      io.emit("user-disconnected", { id: socket.id });
+
+      io.emit("user-disconnected", { id: socket.id, user: username });
     });
   });
-};
+}
 
-export default SocketConnection;
+export {
+  SocketConnection,
+  GetUsers
+}

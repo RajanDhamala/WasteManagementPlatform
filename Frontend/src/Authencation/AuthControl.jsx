@@ -1,16 +1,14 @@
 import React, { useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import useUserContext from '@/hooks/useUserContext'; 
-import { useAlert } from "@/UserContext/AlertContext"
+import useStore from '@/ZustandStore/UserStore';
 
 const ProtectedRoute = ({ children }) => {
-  const { CurrentUser } = useUserContext();
-  const { setAlert } = useAlert();
-  const navigate = useNavigate();
+const CurrentUser=useStore((state)=>state.CurrentUser)
+  const setAlert=useStore((state)=>state.setAlert)
 
   useEffect(() => {
     if (!CurrentUser) {
-      setAlert({ type: 'error', message: 'Please login to continue' });
+      setAlert({ type: 'error', message: 'Login is required for access Sorry :)' });
     }
   }, [CurrentUser, setAlert]);
 

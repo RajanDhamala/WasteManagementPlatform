@@ -3,7 +3,7 @@ import { Calendar, Import, Search } from "lucide-react"
 import EventCard from "./EventCard"
 import { Link } from "react-router-dom"
 import { motion, useScroll, useTransform } from "framer-motion"
-import { useAlert } from "@/UserContext/AlertContext"
+import useStore from "@/ZustandStore/UserStore"
 import axios from 'axios'
 import { useQuery } from "@tanstack/react-query"
 
@@ -14,7 +14,7 @@ const LandingPage = () => {
   const scale = useTransform(scrollYProgress, [0, 1], [1, 0.8])
 
   const [email,setemail]=useState('')
-  const {setAlert}=useAlert()
+ const setAlert=useStore((state)=>state.setAlert)
 
   const validateEmail = (email) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

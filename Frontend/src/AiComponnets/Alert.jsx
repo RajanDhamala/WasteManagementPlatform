@@ -2,10 +2,12 @@ import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from "lucide-react";
-import { useAlert } from "@/UserContext/AlertContext";  // 
+import useStore from "@/ZustandStore/UserStore";
 
 const Alert = ({ autoClose = true, duration = 4000 }) => {
-  const { alert, setAlert } = useAlert(); 
+  const alert=useStore((state)=>state.alert)
+  const setAlert=useStore((state)=>state.setAlert)
+  const clearAlert=useStore((state)=>state.clearAlert)
 
   const alertStyles = {
     success: "bg-green-500 text-white",
@@ -26,7 +28,7 @@ const Alert = ({ autoClose = true, duration = 4000 }) => {
   useEffect(() => {
     if (autoClose && alert) {
       const timer = setTimeout(() => {
-        setAlert(null);
+        clearAlert();
       }, duration);
 
       return () => clearTimeout(timer);

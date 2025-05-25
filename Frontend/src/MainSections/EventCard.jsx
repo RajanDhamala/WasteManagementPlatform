@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Calendar, MapPin, Users, ChevronLeft, ChevronRight, FileText } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAlert } from "@/UserContext/AlertContext";
+import useStore from "@/ZustandStore/UserStore";
 import axios from "axios";
 
 const EventCard = ({
@@ -20,7 +20,7 @@ const EventCard = ({
   const [joinDisabled, setJoinDisabled] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
 
-  const { setAlert } = useAlert();
+ const setAlert=useStore((state)=>state.setAlert)
   const encodedTitle = title;
 
   const currentImage = useMemo(() => EventImg[currentImageIndex] || "/images/default-event.jpg", [currentImageIndex, EventImg]);

@@ -12,9 +12,5 @@ ParticipantRouter.get('/',(req,res)=>{
 ParticipantRouter.get('/qr',AuthMiddleware,CreateQr)
 ParticipantRouter.post('/verify',AuthMiddleware,VerifyQr)
 
-ParticipantRouter.get('/temp',(req,res)=>{
-   console.log('hello bhai')
-   return res.json(GetUsers())
-})
 
 export default ParticipantRouter

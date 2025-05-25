@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Leaf, Mail, Lock, User, Loader2 } from "lucide-react";
 import Confetti from 'react-confetti';
 import axios from "axios"
-import { useAlert } from "@/UserContext/AlertContext";
+import useStore from "@/ZustandStore/UserStore";
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -18,7 +18,8 @@ const Register = () => {
   const [showConfetti, setShowConfetti] = useState(false);
   const navigate = useNavigate();
 
-  const {setAlert}=useAlert();
+  const setAlert=useStore((state)=>state.setAlert)
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
  

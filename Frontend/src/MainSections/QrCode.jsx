@@ -14,7 +14,6 @@ const QrCode = () => {
   const videoRef = useRef(null);
   const codeReaderRef = useRef(null);
 
-  // TanStack Query mutation for QR verification
   const verifyQrMutation = useMutation({
     mutationFn: async () => {
       if (!scannedData) throw new Error("QR code not available");

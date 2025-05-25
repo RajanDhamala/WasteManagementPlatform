@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, KeyRound, ArrowLeft, Shield} from 'lucide-react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { useAlert } from '@/UserContext/AlertContext';
+import useStore from '@/ZustandStore/UserStore';
 
 function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -14,7 +14,7 @@ function ForgotPassword() {
 
   const navigate = useNavigate();
   
-  const { setAlert } = useAlert();
+ const setAlert=useStore((state)=>state.setAlert)
 
   const containerVariants = {
     hidden: { opacity: 0, scale: 0.9 },
