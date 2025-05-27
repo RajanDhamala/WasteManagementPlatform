@@ -2,150 +2,183 @@ import { useState, useEffect, useRef } from "react"
 import { io } from "socket.io-client"
 import { MessageCircle, Users, Send, Menu, X, ChevronLeft } from "lucide-react"
 import useStore from "@/ZustandStore/UserStore"
+import { useQuery } from "@tanstack/react-query"
+import axios from 'axios'
+import { useQueryClient } from "@tanstack/react-query"
 
 function ChatApp() {
-  const CurrentUser=useStore((state)=>state.CurrentUser)
+
+const queryClient = useQueryClient();
+
+  const CurrentUser = useStore((state) => state.CurrentUser)
   const [socket, setSocket] = useState(null)
   const [connected, setConnected] = useState(false)
-  const [events, setEvents] = useState([])
   const [activeEvent, setActiveEvent] = useState(null)
   const [message, setMessage] = useState("")
   const [messages, setMessages] = useState([])
-  const [connectedUsers, setConnectedUsers] = useState([])
   const [isTyping, setIsTyping] = useState(false)
   const [typingUser, setTypingUser] = useState("")
   const [isMobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("events")
+  const [connectedUsers] = useState([])
+  console.log(CurrentUser)
 
   const messagesEndRef = useRef(null)
   const typingTimeoutRef = useRef(null)
 
-  useEffect(() => {
-    fetch("http://localhost:8000/event/active", {
-      credentials: "include",
+  const FetchData = async () => {
+    const response = await axios.get("http://localhost:8000/event/active", {
+      withCredentials: true,
     })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && data.data) {
-          setEvents(data.data)
-          if (data.data.length > 0 && !activeEvent) {
-            setActiveEvent(data.data[0])
-          }
-        }
-      })
-      .catch((err) => {
-        console.error("Error fetching events:", err)
-      })
+    return response.data.data
+  }
 
+  const { data } = useQuery({
+    queryKey: ["ChatEvents"],
+    queryFn: FetchData,
+  })
+
+  useEffect(() => {
     const socketInstance = io(import.meta.env.VITE_BASE_URL || "http://localhost:8000", {
       withCredentials: true,
       transports: ["websocket", "polling"],
     })
-
     setSocket(socketInstance)
-
-    return () => {
-      socketInstance.disconnect()
-    }
+    return () => socketInstance.disconnect()
   }, [])
 
   useEffect(() => {
     if (!socket) return
 
     socket.on("connect", () => {
-      console.log("Connected to server")
       setConnected(true)
     })
 
     socket.on("disconnect", () => {
-      console.log("Disconnected from server")
       setConnected(false)
     })
 
-    socket.on("connected-users", (users) => {
-      setConnectedUsers(users)
-      console.log(users)
-    })
-     socket.on("group-message", ({ senderName, senderId, message, timestamp }) => {
-      const newMessage = {
-        id: Date.now(),
-        senderName,
-        senderId,
-        message,
-        timestamp: timestamp || new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, newMessage]);
-      setIsTyping(false);
-      // Scroll to bottom on new message
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    })
+    socket.on("Group-Message", (data) => {
+        const newMessage = {
+          id: data.MessageId,
+          senderId: data.senderId || `user_${data.sender}`,
+          senderName: data.sender,
+          message: data.message,
+          timestamp: Date.now(),
+          group: data.group
+        }
+        
+queryClient.setQueryData(['ChatEvents'], oldData => {
+  console.log('oldData:', oldData);
+  console.log('newMessage.group:', newMessage.group);
 
-    socket.on('Group-Message',(data)=>{
-      console.log("data:",data)
-    })
+  if (!oldData) return oldData;
+
+  let updated = false;
+
+  const newData = oldData.map(group => {
+    if (group._id === newMessage.group) {
+      const exists = group.Messages.some(msg => msg.id === newMessage.id);
+      if (!exists) {
+        updated = true;
+        return {
+          ...group,
+          Messages: [...group.Messages, newMessage]
+        };
+      }
+    }
+    return group;
+  });
+
+  console.log('updated:', updated);
+  console.log('newData:', newData);
+
+  return updated ? newData : oldData;
+});
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+        }, 100)
+      }
+    )
 
     socket.on("Group-Typing", (data) => {
-      console.log(data)
-      setIsTyping(true)
-      setTypingUser(data.sender)
-      console.log('....')
+      if (activeEvent && data.group === activeEvent._id && data.sender !== CurrentUser.name) {
+        setIsTyping(true)
+        setTypingUser(data.sender)
 
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current)
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+
+        typingTimeoutRef.current = setTimeout(() => {
+          setIsTyping(false)
+          setTypingUser("")
+        }, 3000)
       }
-
-      typingTimeoutRef.current = setTimeout(() => {
-        setIsTyping(false)
-      }, 3000)
     })
 
     return () => {
       socket.off("connect")
       socket.off("disconnect")
-      socket.off("connected-users")
-      socket.off("group-message")
       socket.off("Group-Typing")
       socket.off("Group-Message")
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
     }
-  }, [socket])
+  }, [socket, activeEvent, CurrentUser])
 
   useEffect(() => {
-    if (socket && activeEvent) {
-      socket.emit("leave-group")
-      setMessages([])
-      socket.emit("join-group", {
-        group: activeEvent.title,
-        eventId: activeEvent._id,
-      })
-    }
-  }, [socket, activeEvent])
+    setMessages([])
+    setIsTyping(false)
+    setTypingUser("")
+  }, [activeEvent])
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
   const handleSendMessage = (e) => {
     e.preventDefault()
-    if (!socket || !activeEvent || !message.trim()) return;
+    if (!socket || !activeEvent || !message.trim()) return
 
-    // Send message to server and let the server broadcast it back
-    socket.emit("Send-group-Message", {
-      group: activeEvent._id,
+    const MessageId = Date.now()
+    const newMessage = {
+      id: MessageId,
+      senderId: CurrentUser._id,
+      senderName: CurrentUser.name,
       message: message.trim(),
-      sender:CurrentUser.name,
+      group: activeEvent._id
+    }
+    console.log(newMessage)
+    socket.emit("Send-group-Message", {
+      group: newMessage.group,
+      message: newMessage.message,
+      sender: newMessage.senderName,
+      senderId: newMessage.senderId,
+      MessageId: newMessage.id,
     })
 
-    // Clear input field
-    setMessage("")
+queryClient.setQueryData(['ChatEvents'], oldData => {
+  if (!oldData) return oldData;
+  let updated = false;
+  const newData = oldData.map(group => {
+    if (group._id === newMessage.group) {
+      const exists = group.Messages.some(msg => msg.id === newMessage.id);
+      if (!exists) {
+        updated = true;
+        return {
+          ...group,
+          Messages: [...group.Messages, newMessage]
+        };
+      }
+    }
+    return group;
+  });
+  return updated ? newData : oldData;
+});
+    setMessage('')
   }
 
   const handleTyping = (e) => {
     setMessage(e.target.value)
-
     if (socket && activeEvent) {
       socket.emit("Is-Typing", {
         group: activeEvent._id,
-        sender:CurrentUser.name,
-        isTyping:true
+        sender: CurrentUser.name,
+        isTyping: true
       })
     }
   }
@@ -168,7 +201,6 @@ function ChatApp() {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-      {/* Sidebar Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 bg-white shadow-sm z-20 flex items-center p-4">
         <button onClick={() => setMobileSidebarOpen(true)} className="mr-4">
           <Menu className="text-gray-600" />
@@ -176,7 +208,6 @@ function ChatApp() {
         <h1 className="text-xl font-bold">{activeEvent ? activeEvent.title : "Event Chat"}</h1>
       </div>
 
-      {/* Sidebar */}
       <div
         className={`fixed inset-y-0 left-0 w-72 bg-white shadow-xl z-30 transform transition-transform duration-300 ${
           isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
@@ -221,7 +252,7 @@ function ChatApp() {
               <div>
                 <h2 className="text-xs font-semibold text-gray-500 mb-3 uppercase">Available Events</h2>
                 <div className="space-y-2">
-                  {events.map((event) => (
+                  {data?.map((event) => (
                     <button
                       key={event._id}
                       onClick={() => setActiveEvent(event)}
@@ -271,7 +302,6 @@ function ChatApp() {
         </div>
       </div>
 
-      {/* Main Chat */}
       <div className="flex-1 flex flex-col bg-white lg:rounded-l-3xl pt-16 lg:pt-0">
         {activeEvent && (
           <div className="p-4 border-b bg-white lg:rounded-tl-3xl flex items-center">
@@ -296,30 +326,41 @@ function ChatApp() {
             </div>
           ) : (
             <>
-              {messages.map((msg) => {
-                const isUser = msg.senderId === CurrentUser?._id
-                return (
-                  <div
-                    key={msg.id}
-                    className={`flex ${isUser ? "justify-end" : "justify-start"}`}
-                  >
-                    <div
-                      className={`max-w-md px-4 py-2 rounded-2xl ${
-                        isUser
-                          ? "bg-blue-500 text-white rounded-br-none"
-                          : "bg-gray-200 text-gray-800 rounded-bl-none"
-                      }`}
-                    >
-                      {!isUser && <div className="text-xs font-semibold mb-1">{msg.senderName}</div>}
-                      <p>{msg.message}</p>
-                      <div className={`text-xs mt-1 flex justify-end ${isUser ? "text-blue-100" : "text-gray-500"}`}>
-                        {formatTime(msg.timestamp)}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
 
+
+{data
+  ?.find(group => group._id === activeEvent?._id)
+  ?.Messages.map(msg => {
+    const isUser = msg.senderId === CurrentUser?._id;
+    return (
+      <div
+        key={msg.id}
+        className={`flex ${isUser ? "justify-end" : "justify-start"}`}
+      >
+        <div
+          className={`max-w-md px-4 py-2 rounded-2xl ${
+            isUser
+              ? "bg-blue-500 text-white rounded-br-none"
+              : "bg-gray-200 text-gray-800 rounded-bl-none"
+          }`}
+        >
+          {!isUser && (
+            <div className="text-xs font-semibold mb-1">
+              {msg.senderName}
+            </div>
+          )}
+          <p>{msg.message}</p>
+          <div
+            className={`text-xs mt-1 flex justify-end ${
+              isUser ? "text-blue-100" : "text-gray-500"
+            }`}
+          >
+            {formatTime(msg.timestamp || Date.now())}
+          </div>
+        </div>
+      </div>
+    );
+  })}
               {isTyping && (
                 <div className="flex justify-start">
                   <div className="bg-gray-200 px-4 py-2 rounded-2xl">
@@ -341,22 +382,28 @@ function ChatApp() {
         {/* Input */}
         {activeEvent && (
           <div className="p-4 border-t bg-white lg:rounded-bl-3xl">
-            <form onSubmit={handleSendMessage} className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2">
               <input
                 type="text"
                 value={message}
                 onChange={handleTyping}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleSendMessage(e)
+                  }
+                }}
                 placeholder="Type a message…"
                 className="flex-1 p-3 bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button
-                type="submit"
+                onClick={handleSendMessage}
                 className="bg-blue-500 text-white p-3 rounded-full hover:bg-blue-600 transition-colors"
                 disabled={!message.trim() || !connected}
               >
                 <Send size={18} />
               </button>
-            </form>
+            </div>
           </div>
         )}
       </div>

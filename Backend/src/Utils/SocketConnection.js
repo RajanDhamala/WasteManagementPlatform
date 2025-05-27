@@ -37,18 +37,16 @@ function SocketConnection(io) {
       if (eventId) {
         socket.join(eventId);
         connectedUsers[socket.id].groups.add(eventId);
-        console.log(`📌 ${event.title} (Event ${index}) - Joined room: ${eventId}`);
+        console.log(`${event.title} (Event ${index}) - Joined room: ${eventId}`);
       }
     });
 
-    console.log("🔗 Joined groups:", Array.from(connectedUsers[socket.id].groups));
+    console.log("Joined groups:", Array.from(connectedUsers[socket.id].groups));
 
 
-
-    
-    socket.on('Send-group-Message',async({message,sender,group,messageId})=>{
-      console.log('Msg:',message,'to',group,'by',sender,messageId);
-      socket.to(group).emit('Group-Message', {message,sender, group,timestamp: new Date().toISOString(),messageId
+    socket.on('Send-group-Message',async({message,sender,group,MessageId,senderId})=>{
+      console.log('Msg:',message,'to',group,'by',sender,MessageId,senderId);
+      socket.to(group).emit('Group-Message', {message,sender, group,timestamp: new Date().toISOString(),MessageId,senderId
 });
 
   socket.on('Is-Typing',async({isTyping,sender,group})=>{

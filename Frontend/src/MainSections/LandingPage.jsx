@@ -6,6 +6,8 @@ import { motion, useScroll, useTransform } from "framer-motion"
 import useStore from "@/ZustandStore/UserStore"
 import axios from 'axios'
 import { useQuery } from "@tanstack/react-query"
+import debounce from 'lodash/debounce';
+import { useCallback } from "react";
 
 
 const LandingPage = () => {
@@ -34,8 +36,8 @@ const LandingPage = () => {
     console.log('Fetched Home Events:', data);
   },
   })
-  
-  const SubscribeDb = async () => {
+
+   const SubscribeDb = async () => {
     if (!validateEmail(email)) {
       setAlert({ type: 'error', message: 'Invalid email address.' });
       return;
@@ -49,6 +51,7 @@ const LandingPage = () => {
       console.log(response.data);
       if (response.data.statusCode === 200) {
         setAlert({ type: 'success', message: response.data.message});
+        setemail('')
       } else if (response.data.statusCode === 400) {
         setAlert({ type: 'error', message: response.data.message });
       }
@@ -57,6 +60,14 @@ const LandingPage = () => {
       setAlert({ type: 'error', message: 'Error in subscribing' });
     }
   };
+
+ 
+  const HandelSubscribeClick = useCallback(
+    debounce(() => {
+      SubscribeDb();
+    }, 5000, { leading: true, trailing: false }),
+    [email] 
+  );
 
   return (
     <>
@@ -273,7 +284,7 @@ const LandingPage = () => {
                   className="bg-green-600 px-4 py-2 rounded-lg hover:bg-green-500"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={(e)=>SubscribeDb()}
+                  onClick={(e)=>HandelSubscribeClick()}
                 >
                   Subscribe
                 </motion.button>

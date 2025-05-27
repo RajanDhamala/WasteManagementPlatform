@@ -509,7 +509,8 @@ const CacheJoinedEvent = async (userId) => {
           _id: 1,
           title: 1,
           date: 1,
-          participantCount: { $size: '$Participants' }
+          participantCount: { $size: '$Participants' },
+          Messages:[]
         }
       }
     ]);
