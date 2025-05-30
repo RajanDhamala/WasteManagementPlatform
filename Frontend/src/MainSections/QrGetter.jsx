@@ -1,15 +1,33 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { io } from "socket.io-client"
-import { MessageCircle, Users, Send, Menu, X, ChevronLeft } from "lucide-react"
+import {MessageCircle,Users,Send,Menu,X,Search,Trash2,Phone,Video, MoreHorizontal,Settings,} from "lucide-react"
 import useStore from "@/ZustandStore/UserStore"
 import { useQuery } from "@tanstack/react-query"
-import axios from 'axios'
+import axios from "axios"
 import { useQueryClient } from "@tanstack/react-query"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+
+function useDebounce(callback, delay) {
+  const timeoutRef = useRef(null)
+
+  return useCallback(
+    (...args) => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+      timeoutRef.current = setTimeout(() => callback(...args), delay)
+    },
+    [callback, delay],
+  )
+}
 
 function ChatApp() {
-
-const queryClient = useQueryClient();
-
+  const queryClient = useQueryClient()
   const CurrentUser = useStore((state) => state.CurrentUser)
   const [socket, setSocket] = useState(null)
   const [connected, setConnected] = useState(false)
@@ -21,10 +39,16 @@ const queryClient = useQueryClient();
   const [isMobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("events")
   const [connectedUsers] = useState([])
-  console.log(CurrentUser)
+  const [searchQuery, setSearchQuery] = useState("")
 
   const messagesEndRef = useRef(null)
   const typingTimeoutRef = useRef(null)
+
+  const Scroll2Button = () => {
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    }, 50)
+  }
 
   const FetchData = async () => {
     const response = await axios.get("http://localhost:8000/event/active", {
@@ -37,6 +61,17 @@ const queryClient = useQueryClient();
     queryKey: ["ChatEvents"],
     queryFn: FetchData,
   })
+
+  // Debounced typing function
+  const debouncedTyping = useDebounce((eventId, userName) => {
+    if (socket && eventId) {
+      socket.emit("Is-Typing", {
+        group: eventId,
+        sender: userName,
+        isTyping: true,
+      })
+    }
+  }, 300)
 
   useEffect(() => {
     const socketInstance = io(import.meta.env.VITE_BASE_URL || "http://localhost:8000", {
@@ -59,47 +94,44 @@ const queryClient = useQueryClient();
     })
 
     socket.on("Group-Message", (data) => {
-        const newMessage = {
-          id: data.MessageId,
-          senderId: data.senderId || `user_${data.sender}`,
-          senderName: data.sender,
-          message: data.message,
-          timestamp: Date.now(),
-          group: data.group
+      const newMessage = {
+        id: data.MessageId,
+        senderId: data.senderId || `user_${data.sender}`,
+        senderName: data.sender,
+        message: data.message,
+        timestamp: Date.now(),
+        group: data.group,
+      }
+
+      queryClient.setQueryData(["ChatEvents"], (oldData) => {
+        if (!oldData) return oldData
+        let updated = false
+        const newData = oldData.map((group) => {
+          if (group._id === newMessage.group) {
+            const exists = group.Messages.some((msg) => msg.id === newMessage.id)
+            if (!exists) {
+              updated = true
+              return {
+                ...group,
+                Messages: [...group.Messages, newMessage],
+              }
+            }
+          }
+          return group
+        })
+
+        // Update activeEvent if it's the same group
+        if (activeEvent && activeEvent._id === newMessage.group) {
+          const updatedEvent = newData.find((group) => group._id === activeEvent._id)
+          if (updatedEvent) {
+            setActiveEvent(updatedEvent)
+          }
         }
-        
-queryClient.setQueryData(['ChatEvents'], oldData => {
-  console.log('oldData:', oldData);
-  console.log('newMessage.group:', newMessage.group);
 
-  if (!oldData) return oldData;
-
-  let updated = false;
-
-  const newData = oldData.map(group => {
-    if (group._id === newMessage.group) {
-      const exists = group.Messages.some(msg => msg.id === newMessage.id);
-      if (!exists) {
-        updated = true;
-        return {
-          ...group,
-          Messages: [...group.Messages, newMessage]
-        };
-      }
-    }
-    return group;
-  });
-
-  console.log('updated:', updated);
-  console.log('newData:', newData);
-
-  return updated ? newData : oldData;
-});
-        setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-        }, 100)
-      }
-    )
+        return updated ? newData : oldData
+      })
+      Scroll2Button()
+    })
 
     socket.on("Group-Typing", (data) => {
       if (activeEvent && data.group === activeEvent._id && data.sender !== CurrentUser.name) {
@@ -140,9 +172,9 @@ queryClient.setQueryData(['ChatEvents'], oldData => {
       senderId: CurrentUser._id,
       senderName: CurrentUser.name,
       message: message.trim(),
-      group: activeEvent._id
+      group: activeEvent._id,
     }
-    console.log(newMessage)
+
     socket.emit("Send-group-Message", {
       group: newMessage.group,
       message: newMessage.message,
@@ -151,34 +183,51 @@ queryClient.setQueryData(['ChatEvents'], oldData => {
       MessageId: newMessage.id,
     })
 
-queryClient.setQueryData(['ChatEvents'], oldData => {
-  if (!oldData) return oldData;
-  let updated = false;
-  const newData = oldData.map(group => {
-    if (group._id === newMessage.group) {
-      const exists = group.Messages.some(msg => msg.id === newMessage.id);
-      if (!exists) {
-        updated = true;
-        return {
-          ...group,
-          Messages: [...group.Messages, newMessage]
-        };
-      }
-    }
-    return group;
-  });
-  return updated ? newData : oldData;
-});
-    setMessage('')
+    queryClient.setQueryData(["ChatEvents"], (oldData) => {
+      if (!oldData) return oldData
+      let updated = false
+      const newData = oldData.map((group) => {
+        if (group._id === newMessage.group) {
+          const exists = group.Messages.some((msg) => msg.id === newMessage.id)
+          if (!exists) {
+            updated = true
+            return {
+              ...group,
+              Messages: [...group.Messages, newMessage],
+            }
+          }
+        }
+        return group
+      })
+      return updated ? newData : oldData
+    })
+    Scroll2Button()
+    setMessage("")
   }
 
   const handleTyping = (e) => {
     setMessage(e.target.value)
-    if (socket && activeEvent) {
-      socket.emit("Is-Typing", {
-        group: activeEvent._id,
-        sender: CurrentUser.name,
-        isTyping: true
+    if (activeEvent && CurrentUser) {
+      debouncedTyping(activeEvent._id, CurrentUser.name)
+    }
+  }
+
+  const handleUnsendMessage = (messageId, groupId) => {
+
+    if (socket) {
+      // Update local state
+      queryClient.setQueryData(["ChatEvents"], (oldData) => {
+        if (!oldData) return oldData
+        const newData = oldData.map((group) => {
+          if (group._id === groupId) {
+            return {
+              ...group,
+              Messages: group.Messages.filter((msg) => msg.id !== messageId),
+            }
+          }
+          return group
+        })
+        return newData
       })
     }
   }
@@ -199,215 +248,328 @@ queryClient.setQueryData(['ChatEvents'], oldData => {
     })
   }
 
+  const filteredEvents = data?.filter((event) => event.title.toLowerCase().includes(searchQuery.toLowerCase())) || []
+
+  // Get the initials for avatar
+  const getInitials = (name) => {
+    if (!name) return "U"
+    return name.charAt(0).toUpperCase()
+  }
+
+  // Get a color based on name (for consistent avatar colors)
+  const getAvatarColor = (name) => {
+    if (!name) return "bg-gray-300"
+    const colors = [
+      "bg-green-500",
+      "bg-blue-500",
+      "bg-orange-500",
+      "bg-emerald-500",
+      "bg-indigo-500",
+      "bg-pink-500",
+      "bg-amber-600",
+      "bg-yellow-500",
+      "bg-teal-500",
+    ]
+    const index = name.charCodeAt(0) % colors.length
+    return colors[index]
+  }
+
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
-      <div className="lg:hidden fixed top-0 left-0 right-0 bg-white shadow-sm z-20 flex items-center p-4">
-        <button onClick={() => setMobileSidebarOpen(true)} className="mr-4">
-          <Menu className="text-gray-600" />
-        </button>
-        <h1 className="text-xl font-bold">{activeEvent ? activeEvent.title : "Event Chat"}</h1>
-      </div>
+    <TooltipProvider>
+      <div className="flex h-screen bg-gray-50">
+        {/* Sidebar - Desktop & Mobile */}
+        <div
+          className={`${
+            isMobileSidebarOpen ? "block" : "hidden"
+          } md:block w-full md:w-80 bg-white border-r border-gray-200 flex flex-col z-30`}
+        >
+          {/* Header */}
+          <div className="p-4 border-b border-gray-200">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <div className="relative">
+                  <MessageCircle className="w-6 h-6 text-blue-500" />
+                  <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center p-0">
+                    3
+                  </Badge>
+                </div>
+                <h1 className="text-lg font-semibold">
+                  Inbox {filteredEvents.length > 0 && `(${filteredEvents.length})`}
+                </h1>
+              </div>
+              <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMobileSidebarOpen(false)}>
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
 
-      <div
-        className={`fixed inset-y-0 left-0 w-72 bg-white shadow-xl z-30 transform transition-transform duration-300 ${
-          isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:relative lg:translate-x-0 lg:block pt-16 lg:pt-0`}
-      >
-        <div className="lg:block">
-          <button onClick={() => setMobileSidebarOpen(false)} className="lg:hidden absolute top-4 right-4">
-            <X className="text-gray-600" />
-          </button>
-
-          <div className="p-4 border-b">
-            <h1 className="text-2xl font-bold text-gray-800">Event Chat</h1>
-            <p className={`text-sm mt-1 ${connected ? "text-green-500" : "text-red-500"}`}>
-              {connected ? "Connected" : "Disconnected"}
-            </p>
-            <p className="text-sm text-gray-500">Logged in as: {CurrentUser?.name || "Guest"}</p>
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="Find a conversation"
+                className="pl-10 bg-gray-50 border-gray-200"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
           </div>
 
-          {/* Tabs */}
-          <div className="flex border-b">
-            <button
-              onClick={() => setActiveTab("events")}
-              className={`flex-1 py-3 flex items-center justify-center ${
-                activeTab === "events" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500"
-              }`}
-            >
-              <MessageCircle className="mr-2" size={18} /> Events
-            </button>
-            <button
-              onClick={() => setActiveTab("participants")}
-              className={`flex-1 py-3 flex items-center justify-center ${
-                activeTab === "participants" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500"
-              }`}
-            >
-              <Users className="mr-2" size={18} /> Participants
-            </button>
-          </div>
+          {/* Conversations List */}
+          <ScrollArea className="flex-1">
+            {filteredEvents.map((event) => {
+              // Find the last message for this event
+              const lastMessage =
+                event.Messages && event.Messages.length > 0 ? event.Messages[event.Messages.length - 1] : null
 
-          {/* Events / Participants List */}
-          <div className="p-4">
-            {activeTab === "events" ? (
-              <div>
-                <h2 className="text-xs font-semibold text-gray-500 mb-3 uppercase">Available Events</h2>
-                <div className="space-y-2">
-                  {data?.map((event) => (
-                    <button
-                      key={event._id}
-                      onClick={() => setActiveEvent(event)}
-                      className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
-                        activeEvent?._id === event._id
-                          ? "bg-blue-100 text-blue-700"
-                          : "hover:bg-gray-100 text-gray-700"
-                      }`}
-                    >
-                      <div className="font-medium"># {event.title}</div>
-                      <div className="text-xs text-gray-500 mt-1 flex justify-between">
-                        <span>{formatDate(event.date)}</span>
-                        <span>
-                          {event.participantCount}{" "}
-                          {event.participantCount === 1 ? "participant" : "participants"}
+              return (
+                <div
+                  key={event._id}
+                  onClick={() => {
+                    setActiveEvent(event)
+                    if (window.innerWidth < 768) setMobileSidebarOpen(false)
+                  }}
+                  className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
+                    activeEvent?._id === event._id ? "bg-blue-50" : ""
+                  }`}
+                >
+                  <div className="flex items-start space-x-3">
+                    <div className="relative">
+                      <Avatar className="w-10 h-10">
+                        <AvatarFallback className={`${getAvatarColor(event.title)} text-white font-medium`}>
+                          {getInitials(event.title)}
+                        </AvatarFallback>
+                      </Avatar>
+                      {/* Online indicator would go here if needed */}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <h3 className="font-medium text-gray-900 truncate">{event.title}</h3>
+                        <span className="text-xs text-gray-500">
+                          {lastMessage ? formatTime(lastMessage.timestamp) : formatDate(event.date)}
                         </span>
                       </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div>
-                <h2 className="text-xs font-semibold text-gray-500 mb-3 uppercase">
-                  Online Users ({connectedUsers.length})
-                </h2>
-                <div className="space-y-3">
-                  {connectedUsers.map((user, index) => (
-                    <div key={user.id || index} className="flex items-center space-x-3">
-                      <div className="relative">
-                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold">
-                          {user.user.charAt(0).toUpperCase()}
-                        </div>
-                        <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white bg-green-500" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-800">{user.user}</p>
-                        <p className="text-xs text-gray-500">{user.group ? `In: ${user.group}` : "Not in a group"}</p>
-                      </div>
+                      <p className="text-sm text-gray-600 truncate">
+                        {lastMessage
+                          ? `${lastMessage.senderName === CurrentUser?.name ? "You: " : ""}${lastMessage.message}`
+                          : `Created on ${formatDate(event.date)}`}
+                      </p>
                     </div>
-                  ))}
-                  {connectedUsers.length === 0 && <p className="text-sm text-gray-500">No users connected</p>}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
 
-      <div className="flex-1 flex flex-col bg-white lg:rounded-l-3xl pt-16 lg:pt-0">
-        {activeEvent && (
-          <div className="p-4 border-b bg-white lg:rounded-tl-3xl flex items-center">
-            <button className="lg:hidden mr-4">
-              <ChevronLeft className="text-gray-600" />
-            </button>
-            <div>
-              <h2 className="text-xl font-bold text-gray-800"># {activeEvent.title}</h2>
-              <p className="text-sm text-gray-500">
-                {formatDate(activeEvent.date)} • {activeEvent.participantCount} participant
-                {activeEvent.participantCount !== 1 ? "s" : ""}
-              </p>
-            </div>
-          </div>
-        )}
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {!activeEvent ? (
-            <div className="h-full flex flex-col items-center justify-center text-center">
-              <MessageCircle className="w-16 h-16 text-gray-300 mb-4" />
-              <p className="text-gray-500">Select an event to start chatting</p>
-            </div>
-          ) : (
-            <>
-
-
-{data
-  ?.find(group => group._id === activeEvent?._id)
-  ?.Messages.map(msg => {
-    const isUser = msg.senderId === CurrentUser?._id;
-    return (
-      <div
-        key={msg.id}
-        className={`flex ${isUser ? "justify-end" : "justify-start"}`}
-      >
-        <div
-          className={`max-w-md px-4 py-2 rounded-2xl ${
-            isUser
-              ? "bg-blue-500 text-white rounded-br-none"
-              : "bg-gray-200 text-gray-800 rounded-bl-none"
-          }`}
-        >
-          {!isUser && (
-            <div className="text-xs font-semibold mb-1">
-              {msg.senderName}
-            </div>
-          )}
-          <p>{msg.message}</p>
-          <div
-            className={`text-xs mt-1 flex justify-end ${
-              isUser ? "text-blue-100" : "text-gray-500"
-            }`}
-          >
-            {formatTime(msg.timestamp || Date.now())}
-          </div>
-        </div>
-      </div>
-    );
-  })}
-              {isTyping && (
-                <div className="flex justify-start">
-                  <div className="bg-gray-200 px-4 py-2 rounded-2xl">
-                    <div className="text-xs font-semibold mb-1">{typingUser}</div>
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse" />
-                      <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse delay-75" />
-                      <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse delay-150" />
-                    </div>
+                    {/* Unread badge - you could calculate this based on read status */}
+                    <Badge className="bg-blue-500 text-white rounded-full h-5 w-5 text-xs flex items-center justify-center p-0">
+                      3
+                    </Badge>
                   </div>
                 </div>
-              )}
+              )
+            })}
+          </ScrollArea>
 
-              <div ref={messagesEndRef} />
-            </>
-          )}
-        </div>
-
-        {/* Input */}
-        {activeEvent && (
-          <div className="p-4 border-t bg-white lg:rounded-bl-3xl">
-            <div className="flex items-center space-x-2">
-              <input
-                type="text"
-                value={message}
-                onChange={handleTyping}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    handleSendMessage(e)
-                  }
-                }}
-                placeholder="Type a message…"
-                className="flex-1 p-3 bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                onClick={handleSendMessage}
-                className="bg-blue-500 text-white p-3 rounded-full hover:bg-blue-600 transition-colors"
-                disabled={!message.trim() || !connected}
-              >
-                <Send size={18} />
-              </button>
+          {/* Bottom Navigation - Mobile */}
+          <div className="md:hidden border-t border-gray-200 p-2">
+            <div className="flex justify-around">
+              <Button variant="ghost" size="icon" className="text-blue-500">
+                <MessageCircle className="w-5 h-5" />
+              </Button>
+              <Button variant="ghost" size="icon">
+                <Users className="w-5 h-5" />
+              </Button>
+              <Button variant="ghost" size="icon">
+                <Phone className="w-5 h-5" />
+              </Button>
+              <Button variant="ghost" size="icon">
+                <Settings className="w-5 h-5" />
+              </Button>
             </div>
           </div>
-        )}
+        </div>
+
+        {/* Main Chat Area */}
+        <div className="flex-1 flex flex-col bg-white">
+          {/* Mobile Header */}
+          <div className="md:hidden p-4 border-b border-gray-200 bg-white flex items-center justify-between">
+            <Button variant="ghost" size="icon" onClick={() => setMobileSidebarOpen(true)}>
+              <Menu className="w-5 h-5" />
+            </Button>
+            <h1 className="text-lg font-semibold">{activeEvent ? activeEvent.title : "Chat"}</h1>
+            <Button variant="ghost" size="icon">
+              <MoreHorizontal className="w-5 h-5" />
+            </Button>
+          </div>
+
+          {activeEvent ? (
+            <>
+              {/* Chat Header - Desktop */}
+              <div className="hidden md:flex p-4 border-b border-gray-200 bg-white">
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center space-x-3">
+                    <Avatar className="w-10 h-10">
+                      <AvatarFallback className={`${getAvatarColor(activeEvent.title)} text-white font-medium`}>
+                        {getInitials(activeEvent.title)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h2 className="font-semibold text-gray-900">{activeEvent.title}</h2>
+                      <div className="flex items-center text-xs text-green-500">
+                        <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+                        Online
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Button variant="ghost" size="icon" className="text-gray-500">
+                      <Search className="w-5 h-5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-gray-500">
+                      <Phone className="w-5 h-5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-gray-500">
+                      <Video className="w-5 h-5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-gray-500">
+                      <MoreHorizontal className="w-5 h-5" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Messages */}
+              <ScrollArea className="flex-1 p-4 bg-white">
+                <div className="space-y-4 pb-4">
+                  {data
+                    ?.find((group) => group._id === activeEvent?._id)
+                    ?.Messages?.map((msg) => {
+                      const isUser = msg.senderId === CurrentUser?._id
+                      return (
+                        <div key={msg.id} className={`flex ${isUser ? "justify-end" : "justify-start"} group`}>
+                          <div
+                            className={`flex items-end gap-2 max-w-xs lg:max-w-md ${isUser ? "flex-row-reverse" : "flex-row"}`}
+                          >
+                            {!isUser && (
+                              <Avatar className="w-8 h-8">
+                                <AvatarFallback className={`${getAvatarColor(msg.senderName)} text-white text-xs`}>
+                                  {getInitials(msg.senderName)}
+                                </AvatarFallback>
+                              </Avatar>
+                            )}
+                            <div
+                              className={`px-4 py-2 rounded-2xl ${
+                                isUser ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-900"
+                              }`}
+                            >
+                              {!isUser && <div className="text-xs font-semibold mb-1">{msg.senderName}</div>}
+                              <p className="text-sm">{msg.message}</p>
+                              <div className={`text-xs mt-1 ${isUser ? "text-blue-100" : "text-gray-500"}`}>
+                                {formatTime(msg.timestamp || Date.now())}
+                              </div>
+                            </div>
+
+                            {/* Unsend option - only visible for user's own messages */}
+                            {isUser && (
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="destructive"
+                                      size="icon"
+                                      className="h-6 w-6 rounded-full"
+                                      onClick={() => handleUnsendMessage(msg.id, activeEvent._id)}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Unsend message</TooltipContent>
+                                </Tooltip>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+
+                  {/* Typing indicator */}
+                  {isTyping && (
+                    <div className="flex justify-start">
+                      <div className="flex items-end gap-2">
+                        <Avatar className="w-8 h-8">
+                          <AvatarFallback className={`${getAvatarColor(typingUser)} text-white text-xs`}>
+                            {getInitials(typingUser)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="bg-gray-100 px-4 py-2 rounded-2xl">
+                          <div className="flex space-x-1">
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-75" />
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-150" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Audio visualization (if needed) */}
+                  {activeEvent.title === "Maria Fernanda" && (
+                    <div className="flex justify-center my-4">
+                      <div className="bg-gray-100 rounded-full px-4 py-2 flex items-center gap-2">
+                        <div className="text-xs text-gray-500">02:03</div>
+                        <div className="flex items-center h-6 gap-[1px]">
+                          {Array.from({ length: 30 }).map((_, i) => (
+                            <div
+                              key={i}
+                              className="bg-green-500 w-1 rounded-full"
+                              style={{
+                                height: `${Math.sin(i * 0.5) * 12 + 6}px`,
+                                opacity: i > 20 ? 0.3 : 1,
+                              }}
+                            ></div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div ref={messagesEndRef} />
+                </div>
+              </ScrollArea>
+
+              {/* Message Input */}
+              <div className="p-4 border-t border-gray-200 bg-white">
+                <form onSubmit={handleSendMessage} className="flex items-center space-x-2">
+                  <div className="flex-1">
+                    <Input
+                      value={message}
+                      onChange={handleTyping}
+                      placeholder="Type a message..."
+                      className="rounded-full border-gray-300"
+                      disabled={!connected}
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    size="icon"
+                    className="rounded-full bg-blue-500 hover:bg-blue-600 h-10 w-10"
+                    disabled={!message.trim() || !connected}
+                  >
+                    <Send className="w-5 h-5" />
+                  </Button>
+                </form>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <MessageCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Select a conversation</h3>
+                <p className="text-gray-500">Choose a conversation from the sidebar to start chatting</p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   )
 }
 

@@ -25,7 +25,7 @@ const startServer = async () => {
         await ConnectDb();
         console.log('Database connected successfully');
         
-        await connectRedis();
+        // await connectRedis();
         console.log('Redis connected successfully');
         const PORT = process.env.PORT || 8000;
         server.listen(PORT, () => {

@@ -29,6 +29,7 @@ import ChatApp from "./MainSections/QrGetter";
 import ProtectedRoute from "./Authencation/AuthControl";
 import useStore from "./ZustandStore/UserStore";
 import ChatMain from "./EventChat/ChatMain";
+import VideoCall from "./MainSections/VideoCall";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -67,7 +68,7 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <ReactQueryDevtools initialIsOpen={false} />
         <BrowserRouter>
-        {/* <Navbar/> */}
+        <Navbar/>
           <Alert />
           <Suspense fallback={<Loader />}>
             <Routes>
@@ -89,6 +90,7 @@ const App = () => {
               <Route path={'scan'} element={<QrCode/>}> </Route>
               <Route path={'chat'} element={<ChatMain/>}> </Route>
                <Route path={'qr'} element={<ChatApp/>}> </Route>
+               <Route path ='/video' element={<VideoCall/>}></Route>
             </Routes>
           </Suspense>
         </BrowserRouter>

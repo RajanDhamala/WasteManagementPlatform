@@ -17,7 +17,7 @@ const ReviewDine = ({ event }) => {
   const [editingReviewId, setEditingReviewId] = useState(null);
   const [editingText, setEditingText] = useState('');
   const [hoverRating, setHoverRating] = useState(0);
-  const { setAlert } = useAlert();
+  const  setAlert  = useStore((state)=>(state.setAlert));
   const queryClient = useQueryClient();
 
   const CurrentUser=useStore((state)=>state.CurrentUser)
