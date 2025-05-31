@@ -11,6 +11,7 @@ import Event from '../Schema/Event.js';
 
 import UserActivty from '../Schema/UserActivity.js';
 import {Redisclient} from '../Utils/RedisUtil.js';
+import { GetUsers } from "../Utils/SocketConnection.js";
 
 
 const RegisterUser = asyncHandler(async (req, res) => {
@@ -438,6 +439,12 @@ const browserdetails=asyncHandler(async(req,res)=>{
   res.send(new ApiResponse(200, "Browser Details", {activity}));
 })
 
+const ActiveUsers=asyncHandler(async(req,res)=>{
+  const users=GetUsers()
+  console.log(users)
+  return res.send(new ApiResponse(200,'Active users list:',users))
+})
+
 export {
     RegisterUser,
     LoginUser,
@@ -451,5 +458,6 @@ export {
     LeaveEvent,
     SeeJoinedEvents,
     ChangePassword,
-    browserdetails
+    browserdetails,
+    ActiveUsers
 }

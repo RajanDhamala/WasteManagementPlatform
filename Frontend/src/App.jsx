@@ -1,23 +1,11 @@
-import React, { Suspense, useEffect } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Alert from "./AiComponnets/Alert";
 import Navbar from "./Navbar";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import TanStack from "./TanStack";
-import {
-  LandingPage,
-  EventSection,
-  SlugEvent,
-  Login,
-  Register,
-  Dashboard,
-  VerifyUser,
-  ForgotPassword,
-  ScrappedNews,
-  ComminitySection,
-  EventReportSection,
-} from "./LazyLoading/Lazyloading";
+import {LandingPage,EventSection,SlugEvent,Login,Register,Dashboard,VerifyUser,ForgotPassword,ScrappedNews,ComminitySection,EventReportSection,} from "./LazyLoading/Lazyloading";
 import Paginationme from "./MainSections/Pagination";
 import Cookies from "js-cookie";
 import ImageComparer from "./AiComponnets/ImageComparer";
@@ -29,7 +17,8 @@ import ChatApp from "./MainSections/QrGetter";
 import ProtectedRoute from "./Authencation/AuthControl";
 import useStore from "./ZustandStore/UserStore";
 import ChatMain from "./EventChat/ChatMain";
-import VideoCall from "./MainSections/VideoCall";
+import useSocket from "./ZustandStore/SocketStore";
+import VideoChat from "./MainSections/VideoCall";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,7 +39,10 @@ const Loader = () => {
 };
 
 const App = () => {
-  const setCurrentUser=useStore((state)=>state.setCurrentUser)
+  const setCurrentUser = useStore((state) => state.setCurrentUser);
+  const socket = useSocket((state) => state.socket);
+  const connect = useSocket((state) => state.connect);
+  const socketId = useSocket((state) => state.socketId);
 
   useEffect(() => {
     const user = Cookies.get("CurrentUser");
@@ -63,37 +55,41 @@ const App = () => {
     }
   }, []);
 
+  useEffect(() => {
+    if (!socket) {
+      connect('http://localhost:8000');
+    }
+  }, [socket, connect]);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ReactQueryDevtools initialIsOpen={false} />
-        <BrowserRouter>
-        <Navbar/>
-          <Alert />
-          <Suspense fallback={<Loader />}>
-            <Routes>
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/profile" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/events" element={<EventSection />} />
-              <Route path="/events/:title" element={<SlugEvent />} />
-              <Route path="/scrapnews" element={<ScrappedNews />} />
-              <Route path="/forgot" element={<ForgotPassword />} />
-              <Route path="/verify" element={<VerifyUser />} />
-              <Route path="/community" element={<ComminitySection />} />
-              <Route path="/tanstack" element={<TanStack />} />
-              <Route path="/eventreport/:title" element={<ProtectedRoute><EventReportSection/></ProtectedRoute>} />
-              <Route path="/compare" element={<ImageComparer />} />
-              <Route path="/about" element={<AboutUs />} />
-              <Route path='makereport' element={<CreateReport/>}></Route>
-              <Route path={'scan'} element={<QrCode/>}> </Route>
-              <Route path={'chat'} element={<ChatMain/>}> </Route>
-               <Route path={'qr'} element={<ChatApp/>}> </Route>
-               <Route path ='/video' element={<VideoCall/>}></Route>
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
+      <ReactQueryDevtools initialIsOpen={false}/>
+      <BrowserRouter>
+        <Alert />
+        <Suspense fallback={<Loader />}>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/profile" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/events" element={<EventSection />} />
+            <Route path="/events/:title" element={<SlugEvent />} />
+            <Route path="/scrapnews" element={<ScrappedNews />} />
+            <Route path="/forgot" element={<ForgotPassword />} />
+            <Route path="/verify" element={<VerifyUser />} />
+            <Route path="/community" element={<ComminitySection />} />
+            <Route path="/tanstack" element={<TanStack />} />
+            <Route path="/eventreport/:title" element={<ProtectedRoute><EventReportSection/></ProtectedRoute>} />
+            <Route path="/compare" element={<ImageComparer />} />
+            <Route path="/about" element={<AboutUs />} />
+            <Route path='makereport' element={<CreateReport/>}></Route>
+            <Route path={'scan'} element={<QrCode/>}> </Route>
+            <Route path={'chat'} element={<ChatMain/>}> </Route>
+            <Route path={'qr'} element={<ChatApp/>}> </Route>
+             <Route path={'video'} element={<VideoChat/>}> </Route>
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
     </QueryClientProvider>
   );
 };

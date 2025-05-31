@@ -1,13 +1,8 @@
 import { useEffect, useRef, useState } from "react"
-import io from "socket.io-client"
 import {Mic,MicOff,Video,VideoOff,Phone,PhoneOff,MessageCircle,Send,X,Users,PhoneIncoming,Clock,} from "lucide-react"
-
-const socket = io("http://localhost:8000", {
-  withCredentials: true,
-})
+import useSocket from "@/ZustandStore/SocketStore"
 
 const VideoChat = () => {
-  const [socketId, setSocketId] = useState(null)
   const [remoteSocketId, setRemoteSocketId] = useState(null)
   const [isAudioMuted, setIsAudioMuted] = useState(false)
   const [isVideoMuted, setIsVideoMuted] = useState(false)
@@ -20,6 +15,10 @@ const VideoChat = () => {
   const [isCallExpiring, setIsCallExpiring] = useState(false)
   const [notification, setNotification] = useState(null)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [isInitialized, setIsInitialized] = useState(false)
+
+  const socket = useSocket((state) => state.socket)
+  const socketId = useSocket((state) => state.socketId)
 
   const localVideoRef = useRef()
   const remoteVideoRef = useRef()
@@ -30,8 +29,56 @@ const VideoChat = () => {
   const ringtoneRef = useRef(null)
   const timeoutRef = useRef(null)
   const countdownRef = useRef(null)
+  const isChatOpenRef = useRef(isChatOpen)
+
+  const initializePeerConnection = () => {
+    if (peerConnection.current) {
+      peerConnection.current.close()
+    }
+
+    peerConnection.current = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }],
+    })
+
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => {
+        peerConnection.current.addTrack(track, localStreamRef.current)
+      })
+    }
+
+    // Set up remote stream
+    const remoteStream = new MediaStream()
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = remoteStream
+    }
+
+    peerConnection.current.ontrack = ({ streams: [stream] }) => {
+      stream.getTracks().forEach((track) => {
+        remoteStream.addTrack(track)
+      })
+    }
+
+    peerConnection.current.onicecandidate = (event) => {
+      if (event.candidate && remoteIdRef.current && socket) {
+        socket.emit("ice-candidate", {
+          to: remoteIdRef.current,
+          candidate: event.candidate,
+        })
+      }
+    }
+
+    peerConnection.current.onconnectionstatechange = () => {
+      console.log("Connection state:", peerConnection.current?.connectionState)
+      if (peerConnection.current?.connectionState === "failed") {
+        // Reinitialize on failure
+        initializePeerConnection()
+      }
+    }
+  }
 
   useEffect(() => {
+    if (!socket) return
+
     const start = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -40,34 +87,16 @@ const VideoChat = () => {
         })
 
         localStreamRef.current = stream
-        localVideoRef.current.srcObject = stream
-
-        peerConnection.current = new RTCPeerConnection()
-
-        stream.getTracks().forEach((track) => {
-          peerConnection.current.addTrack(track, stream)
-        })
-
-        const remoteStream = new MediaStream()
-        remoteVideoRef.current.srcObject = remoteStream
-
-        peerConnection.current.ontrack = ({ streams: [stream] }) => {
-          stream.getTracks().forEach((track) => {
-            remoteStream.addTrack(track)
-          })
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream
         }
 
-        peerConnection.current.onicecandidate = (event) => {
-          if (event.candidate && remoteIdRef.current) {
-            socket.emit("ice-candidate", {
-              to: remoteIdRef.current,
-              candidate: event.candidate,
-            })
-          }
-        }
+        // Initialize peer connection after getting media stream
+        initializePeerConnection()
+        setIsInitialized(true)
 
-        // Enhanced incoming call handler with timeout
         socket.on("call-made", async ({ offer, socket: callerId }) => {
+          console.log("call is incoming")
           setIncomingCall({ offer, callerId })
           setCallTimeout(30)
           setIsCallExpiring(false)
@@ -76,28 +105,35 @@ const VideoChat = () => {
             ringtoneRef.current.play().catch(console.error)
           }
 
-          // Start 30-second countdown
           startCallTimeout(callerId)
         })
 
         socket.on("answer-made", async ({ answer }) => {
-          await peerConnection.current.setRemoteDescription(new RTCSessionDescription(answer))
-          setIsInCall(true)
-          clearCallTimeout()
+          if (peerConnection.current) {
+            await peerConnection.current.setRemoteDescription(new RTCSessionDescription(answer))
+            setIsInCall(true)
+            clearCallTimeout()
+          }
         })
 
         socket.on("ice-candidate", async ({ candidate }) => {
-          if (candidate) {
-            await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate))
+          if (candidate && peerConnection.current) {
+            try {
+              await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate))
+            } catch (error) {
+              console.error("Error adding ICE candidate:", error)
+            }
           }
         })
 
         socket.on("Recieve-peer2peer", ({ message, sender, timestamps, messageId }) => {
           console.log(message, sender, timestamps, messageId)
           setMessages((prev) => [...prev, { message, sender, type: "received", timestamps }])
-          // Increment unread count when chat is closed or not in view
-          if (!isChatOpen) {
+
+          if (!isChatOpenRef.current) {
             setUnreadCount((prev) => prev + 1)
+          } else {
+            setUnreadCount(0)
           }
         })
 
@@ -114,24 +150,23 @@ const VideoChat = () => {
         })
       } catch (err) {
         console.error("Error accessing media devices.", err)
+        showNotification("Failed to access camera/microphone", "error")
       }
     }
 
     start()
 
-    socket.on("me", (id) => {
-      setSocketId(id)
-    })
-
     return () => {
       clearCallTimeout()
-      socket.disconnect()
-      peerConnection.current?.close()
-
-      const tracks = localVideoRef.current?.srcObject?.getTracks()
-      tracks?.forEach((track) => track.stop())
+      if (peerConnection.current) {
+        peerConnection.current.close()
+        peerConnection.current = null
+      }
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((track) => track.stop())
+      }
     }
-  }, [])
+  }, [socket])
 
   // Start call timeout countdown
   const startCallTimeout = (callerId) => {
@@ -140,21 +175,18 @@ const VideoChat = () => {
 
     countdownRef.current = setInterval(() => {
       timeLeft -= 1
-      setCallTimeout(Math.max(0, timeLeft)) // Prevent negative numbers
+      setCallTimeout(Math.max(0, timeLeft))
 
-      // Show warning when 10 seconds left
       if (timeLeft <= 10 && timeLeft > 0) {
         setIsCallExpiring(true)
       }
 
       if (timeLeft <= 0) {
-        clearInterval(countdownRef.current) // Stop the interval immediately
-        // Auto-reject call after 30 seconds
+        clearInterval(countdownRef.current)
         autoRejectCall(callerId)
       }
     }, 1000)
 
-    // Backup timeout
     timeoutRef.current = setTimeout(() => {
       autoRejectCall(callerId)
     }, 30000)
@@ -178,7 +210,6 @@ const VideoChat = () => {
   const autoRejectCall = (callerId) => {
     if (!incomingCall) return
 
-    // Emit timeout event to backend
     socket.emit("Call-timeout", {
       reason: "No answer within 30 seconds",
       RejectedBy: socketId,
@@ -188,7 +219,6 @@ const VideoChat = () => {
     setIncomingCall(null)
     clearCallTimeout()
 
-    // Stop ringing sound
     if (ringtoneRef.current) {
       ringtoneRef.current.pause()
       ringtoneRef.current.currentTime = 0
@@ -200,15 +230,36 @@ const VideoChat = () => {
   }, [messages])
 
   const handleCall = async () => {
+    if (!isInitialized || !peerConnection.current || !socket) {
+      showNotification("Please wait for initialization to complete", "warning")
+      return
+    }
+
     const peerId = prompt("Enter the socket ID to call:")
     if (!peerId) return
-    setRemoteSocketId(peerId)
-    remoteIdRef.current = peerId
 
-    const offer = await peerConnection.current.createOffer()
-    await peerConnection.current.setLocalDescription(offer)
+    try {
+      setRemoteSocketId(peerId)
+      remoteIdRef.current = peerId
 
-    socket.emit("call-user", { offer, to: peerId })
+      // Ensure peer connection is in a good state
+      if (peerConnection.current.signalingState === "closed") {
+        initializePeerConnection()
+      }
+
+      const offer = await peerConnection.current.createOffer()
+      await peerConnection.current.setLocalDescription(offer)
+
+      socket.emit("call-user", { offer, to: peerId })
+      console.log("calling the user")
+      showNotification("Calling...", "info")
+    } catch (error) {
+      console.error("Error making call:", error)
+      showNotification("Failed to make call. Please try again.", "error")
+
+      // Reinitialize peer connection on error
+      initializePeerConnection()
+    }
   }
 
   const handleEndCall = () => {
@@ -217,15 +268,13 @@ const VideoChat = () => {
     remoteIdRef.current = null
     clearCallTimeout()
 
-    if (peerConnection.current) {
-      peerConnection.current.close()
-      peerConnection.current = new RTCPeerConnection()
-    }
+    // Reinitialize peer connection for next call
+    initializePeerConnection()
   }
 
   // Enhanced accept call function
   const acceptCall = async () => {
-    if (!incomingCall) return
+    if (!incomingCall || !peerConnection.current) return
 
     const { offer, callerId } = incomingCall
     setRemoteSocketId(callerId)
@@ -233,13 +282,17 @@ const VideoChat = () => {
     setIncomingCall(null)
     clearCallTimeout()
 
-    // Stop ringing sound
     if (ringtoneRef.current) {
       ringtoneRef.current.pause()
       ringtoneRef.current.currentTime = 0
     }
 
     try {
+      // Ensure peer connection is ready
+      if (peerConnection.current.signalingState === "closed") {
+        initializePeerConnection()
+      }
+
       await peerConnection.current.setRemoteDescription(new RTCSessionDescription(offer))
       const answer = await peerConnection.current.createAnswer()
       await peerConnection.current.setLocalDescription(answer)
@@ -249,6 +302,7 @@ const VideoChat = () => {
     } catch (error) {
       console.error("Error accepting call:", error)
       showNotification("Failed to accept call. Please try again.", "error")
+      initializePeerConnection()
     }
   }
 
@@ -258,10 +312,7 @@ const VideoChat = () => {
 
     const { callerId } = incomingCall
 
-    // Emit decline event to backend
     socket.emit("decline-call", { to: callerId })
-
-    // Also emit timeout event for consistency
     socket.emit("Call-timeout", {
       reason: "Call declined by user",
       RejectedBy: socketId,
@@ -271,7 +322,6 @@ const VideoChat = () => {
     setIncomingCall(null)
     clearCallTimeout()
 
-    // Stop ringing sound
     if (ringtoneRef.current) {
       ringtoneRef.current.pause()
       ringtoneRef.current.currentTime = 0
@@ -299,7 +349,7 @@ const VideoChat = () => {
   }
 
   const sendMessage = () => {
-    if (newMessage.trim() && remoteSocketId) {
+    if (newMessage.trim() && remoteSocketId && socket) {
       const messageData = {
         message: newMessage,
         sender: socketId,
@@ -334,6 +384,7 @@ const VideoChat = () => {
   }
 
   useEffect(() => {
+    isChatOpenRef.current = isChatOpen
     if (isChatOpen) {
       setUnreadCount(0)
     }
@@ -418,6 +469,7 @@ const VideoChat = () => {
           <div className="flex items-center gap-2 text-sm text-gray-300">
             <Users className="w-4 h-4" />
             <span className="font-mono break-all">ID: {socketId}</span>
+            {!isInitialized && <span className="text-yellow-400 text-xs">(Initializing...)</span>}
           </div>
           {isInCall && (
             <div className="flex items-center gap-2 text-sm text-green-400">
@@ -484,7 +536,10 @@ const VideoChat = () => {
               ) : (
                 <button
                   onClick={handleCall}
-                  className="p-2 sm:p-3 rounded-full bg-green-600 hover:bg-green-700 transition-colors"
+                  disabled={!isInitialized}
+                  className={`p-2 sm:p-3 rounded-full transition-colors ${
+                    isInitialized ? "bg-green-600 hover:bg-green-700" : "bg-gray-500 cursor-not-allowed"
+                  }`}
                 >
                   <Phone className="w-6 h-6 sm:w-5 sm:h-5" />
                 </button>
@@ -492,7 +547,7 @@ const VideoChat = () => {
 
               {/* Chat Toggle */}
               <button
-                onClick={() => setIsChatOpen(!isChatOpen)}
+                onClick={() => setIsChatOpen((prev) => !prev)}
                 className={`p-2 sm:p-3 rounded-full transition-colors lg:hidden relative ${
                   isChatOpen ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-600 hover:bg-gray-700"
                 }`}
@@ -509,7 +564,6 @@ const VideoChat = () => {
         </div>
       </div>
 
-      {/* Chat Panel - now properly aligned */}
       <div
         className={`
     ${isChatOpen ? "flex" : "hidden"} lg:flex
@@ -521,7 +575,7 @@ const VideoChat = () => {
       >
         {/* Chat Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-700 flex-shrink-0">
-          <h3 className="font-semibold flex items-center ">
+          <h3 className="font-semibold flex items-center gap-2">
             <MessageCircle className="w-5 h-5" />
             Chat
             {/* Only show unread counter on mobile */}
@@ -601,7 +655,7 @@ const VideoChat = () => {
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         .animation-delay-200 {
           animation-delay: 0.2s;
         }

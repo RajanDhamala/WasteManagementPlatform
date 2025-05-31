@@ -1,7 +1,8 @@
 import cookie from 'cookie';
 import { CacheJoinedEvent } from '../Controller/EventController.js';
 
-const connectedUsers = {};
+const connectedUsers = {}; // socketId -> user info
+const userIdMap = {};      // userId -> socketId
 
 function GetUsers() {
   return Object.values(connectedUsers);
@@ -19,35 +20,44 @@ function SocketConnection(io) {
         : null;
     } catch (error) {
       console.error("❌ Error parsing CurrentUser cookie:", error);
+      socket.disconnect();
+      return;
     }
 
     const username = currentUser?.name || "Guest";
     const userId = currentUser?._id;
 
-    // === 👤 Register Connected User ===
+    // if (userId && userIdMap[userId]) {
+    //   console.log(`⛔ User ${username} (${userId}) is already connected. Rejecting new connection.`);
+    //   socket.emit("connectionRejected", "You are already connected from another device.");
+    //   socket.disconnect();
+    //   return;
+    // }
+
     connectedUsers[socket.id] = {
       id: socket.id,
       user: username,
       groups: new Set(),
+      userId,
     };
 
-    socket.emit("me", socket.id);
+    if (userId) {
+      userIdMap[userId] = socket.id;
+    }
     console.log(`✅ New client connected: ${username} (ID: ${socket.id})`);
 
-    // === 🏠 Join Previously Joined Event Groups (if any) ===
-    // const joinedEvents = await CacheJoinedEvent(userId);
-    // joinedEvents.forEach((event, index) => {
-    //   const eventId = event._id?.toString?.() || event.id?.toString?.();
-    //   if (eventId) {
-    //     socket.join(eventId);
-    //     connectedUsers[socket.id].groups.add(eventId);
-    //     console.log(`${event.title} (Event ${index}) - Joined room: ${eventId}`);
-    //   }
-    // });
+    const joinedEvents = await CacheJoinedEvent(userId);
+    joinedEvents.forEach((event, index) => {
+      const eventId = event._id?.toString?.() || event.id?.toString?.();
+      if (eventId) {
+        socket.join(eventId);
+        connectedUsers[socket.id].groups.add(eventId);
+        console.log(`${event.title} (Event ${index}) - Joined room: ${eventId}`);
+      }
+    });
 
-    // console.log("📂 Joined groups:", Array.from(connectedUsers[socket.id].groups));
+    console.log("📂 Joined groups:", Array.from(connectedUsers[socket.id].groups));
 
-    // === 📩 Group Chat Message ===
     socket.on("Send-group-Message", ({ message, sender, group, MessageId, senderId }) => {
       console.log("📨 Msg:", message, "to", group, "by", sender, MessageId, senderId);
       socket.to(group).emit("Group-Message", {
@@ -65,10 +75,10 @@ function SocketConnection(io) {
       socket.to(group).emit("Group-Typing", { isTyping, sender, group });
     });
 
-    socket.on("Send-peer2peer",({message,messageId,timestamps,sender,reciever})=>{
-      console.log(message,messageId,timestamps,sender,reciever)
-      socket.to(reciever).emit("Recieve-peer2peer",{message,messageId,timestamps,sender,reciever})
-    })
+    socket.on("Send-peer2peer", ({ message, messageId, timestamps, sender, reciever }) => {
+      console.log(message, messageId, timestamps, sender, reciever);
+      socket.to(reciever).emit("Recieve-peer2peer", { message, messageId, timestamps, sender});
+    });
 
     socket.on("call-user", ({ offer, to }) => {
       console.log(`📞 Call from ${socket.id} to ${to}`);
@@ -86,10 +96,10 @@ function SocketConnection(io) {
       });
     });
 
-    socket.on("Call-timeout",({reason,RejectedBy,RejectedOf})=>{
-        console.log(`Call rejected by ${RejectedBy} of ${RejectedOf} cause ${reason}`)
-        io.to(RejectedOf).emit("Call-expired",{reason,RejectedBy})
-    })
+    socket.on("Call-timeout", ({ reason, RejectedBy, RejectedOf }) => {
+      console.log(`Call rejected by ${RejectedBy} of ${RejectedOf} cause ${reason}`);
+      io.to(RejectedOf).emit("Call-expired", { reason, RejectedBy });
+    });
 
     socket.on("ice-candidate", ({ candidate, to }) => {
       console.log(`🧊 ICE candidate from ${socket.id} to ${to}`);
@@ -111,7 +121,12 @@ function SocketConnection(io) {
         });
       }
 
+      const disconnectedUserId = connectedUsers[socket.id]?.userId;
+      if (disconnectedUserId) {
+        delete userIdMap[disconnectedUserId];
+      }
       delete connectedUsers[socket.id];
+
       io.emit("user-disconnected", { id: socket.id, user: username });
     });
   });

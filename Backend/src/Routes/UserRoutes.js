@@ -1,6 +1,6 @@
 import express from 'express';
 import AuthMiddleware from '../Middleware/JwtMiddleware.js';
-import { RegisterUser,LoginUser,LogoutUser,UpdateProfile,UserProfile,ForgotPassword,verifyPasswordOtp,VerifyUser,VerifyVerficationOtp,LeaveEvent,SeeJoinedEvents,browserdetails } from '../Controller/UserController.js';
+import { RegisterUser,LoginUser,LogoutUser,UpdateProfile,UserProfile,ForgotPassword,verifyPasswordOtp,VerifyUser,VerifyVerficationOtp,LeaveEvent,SeeJoinedEvents,browserdetails,ActiveUsers } from '../Controller/UserController.js';
 import UpdatePfp from '../Middleware/ProfilePic.js';
 import {rateLimit} from 'express-rate-limit';
 import { AiApi } from '../Utils/AiIntegration.js';
@@ -64,5 +64,7 @@ UserRoute.get('/ai',(req,res)=>{
     AiApi('how ai works')
     return res.send('AI working')
 })
+
+UserRoute.get('/current',ActiveUsers)
 
 export default UserRoute;
