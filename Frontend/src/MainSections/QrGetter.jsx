@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react"
-import {MessageCircle,Users,Send,Menu,X,Search,Trash2,Phone,Video,MoreHorizontal,Settings,UserPlus,Circle,CheckCircle2,} from "lucide-react"
+import { MessageCircle,Users,Send,Menu,X,Search,Trash2,Phone,Video,MoreHorizontal,Settings,UserPlus,Circle,CheckCircle2,} from "lucide-react"
 import useStore from "@/ZustandStore/UserStore"
 import { useQuery } from "@tanstack/react-query"
 import axios from "axios"
@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import useSocket from "@/ZustandStore/SocketStore"
+import { useNavigate } from "react-router-dom"
 
 function useDebounce(callback, delay) {
   const timeoutRef = useRef(null)
@@ -28,7 +29,7 @@ function useDebounce(callback, delay) {
 }
 
 function ChatApp() {
- 
+  const navigate=useNavigate()
   const queryClient = useQueryClient()
   const CurrentUser = useStore((state) => state.CurrentUser)
   const [activeChat, setActiveChat] = useState(null)
@@ -42,7 +43,9 @@ function ChatApp() {
 
   const messagesEndRef = useRef(null)
   const typingTimeoutRef = useRef(null)
-   const socket=useSocket((state)=>state.socket)
+  const socket = useSocket((state) => state.socket)
+  const setVideoCall = useSocket((state) => state.setVideoCall)
+  const VideoCall = useSocket((state) => state.VideoCall)
 
   const Scroll2Button = () => {
     setTimeout(() => {
@@ -59,16 +62,24 @@ function ChatApp() {
 
   const FetchDirectChats = async () => {
     try {
-      const response = await axios.get("http://localhost:8000/user/current", {
+     const response = await new Promise(async (resolve, reject) => {
+    try {
+      const res = await axios.get("http://localhost:8000/user/current", {
         withCredentials: true,
       })
-
+      setTimeout(() => {
+        resolve(res)
+      }, 2000) 
+    } catch (err) {
+      reject(err)
+    }
+  })
       console.log("Raw API response:", response.data.data)
 
       const transformedData = (response.data.data || []).map((user) => ({
         _id: user.id,
         title: user.user,
-        Messages: [], 
+        Messages: [],
         type: "direct",
         date: new Date().toISOString(),
         isOnline: true,
@@ -92,7 +103,16 @@ function ChatApp() {
     queryFn: FetchDirectChats,
   })
 
-
+  const handleVideoCalling = (receiverId,name) => {
+    setVideoCall({
+      receiverId: receiverId,
+      isActive: true,
+      callType: "video",
+      reciverName:name,
+    })
+    console.log(receiverId,name)
+   navigate(`/call`)
+  }
 
   const debouncedTyping = useDebounce((chatId, userName, isGroup) => {
     if (socket && chatId) {
@@ -327,12 +347,13 @@ function ChatApp() {
       }))
     } else {
       // Send the socket message for direct chat
+      console.log("peer 2peer msg sent",newMessage.message)
       socket.emit("Send-peer2peer", {
         messageId: MessageId,
         message: newMessage.message,
         sender: newMessage.senderName,
         senderId: newMessage.senderId,
-        reciever: activeChat._id, // Use the chat ID as receiver
+        reciever: activeChat.title, // Use the chat ID as receiver
         timestamps: newMessage.timestamp,
       })
 
@@ -488,7 +509,7 @@ function ChatApp() {
   const currentChats = getCurrentChats()
   return (
     <TooltipProvider>
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex h-screen bg-gray-50 md:ml-14">
         {/* Sidebar - Desktop & Mobile */}
         <div
           className={`${
@@ -603,11 +624,6 @@ function ChatApp() {
                             </span>
                             {lastMessage && lastMessage.senderId === CurrentUser._id && (
                               <div className="text-blue-500">
-                                {lastMessage.readBy && lastMessage.readBy.length > 0 ? (
-                                  <CheckCircle2 className="w-3 h-3" />
-                                ) : (
-                                  <Circle className="w-3 h-3" />
-                                )}
                               </div>
                             )}
                           </div>
@@ -633,23 +649,6 @@ function ChatApp() {
             )}
           </ScrollArea>
 
-          {/* Bottom Navigation - Mobile */}
-          <div className="md:hidden border-t border-gray-200 p-2">
-            <div className="flex justify-around">
-              <Button variant="ghost" size="icon" className="text-blue-500">
-                <MessageCircle className="w-5 h-5" />
-              </Button>
-              <Button variant="ghost" size="icon">
-                <Users className="w-5 h-5" />
-              </Button>
-              <Button variant="ghost" size="icon">
-                <Phone className="w-5 h-5" />
-              </Button>
-              <Button variant="ghost" size="icon">
-                <Settings className="w-5 h-5" />
-              </Button>
-            </div>
-          </div>
         </div>
 
         {/* Main Chat Area */}
@@ -720,7 +719,12 @@ function ChatApp() {
                         <Button variant="ghost" size="icon" className="text-gray-500">
                           <Phone className="w-5 h-5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="text-gray-500">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-gray-500"
+                         onClick={() => handleVideoCalling(activeChat._id,activeChat.title)}
+                        >
                           <Video className="w-5 h-5" />
                         </Button>
                       </>

@@ -4,6 +4,7 @@ import { io } from 'socket.io-client';
 const useSocket = create((set, get) => ({
   socket: null,
   socketId: null, 
+  VideoCall: null,
 
   connect: (url) => {
     if (get().socket) return;
@@ -28,6 +29,13 @@ const useSocket = create((set, get) => ({
       set({ socket: null, socketId: null });
     }
   },
+  setVideoCall: (videoCall) => {
+    set({ VideoCall: videoCall });
+  },
+
+  removeVideoCall: () => {
+    set({ VideoCall: null });
+  }
 }));
 
 export default useSocket;

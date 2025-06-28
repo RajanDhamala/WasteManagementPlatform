@@ -1,5 +1,8 @@
+"use client"
+
 import { useEffect, useRef, useState } from "react"
-import {Mic,MicOff,Video,VideoOff,Phone,PhoneOff,MessageCircle,Send,X,Users,PhoneIncoming,Clock,} from "lucide-react"
+import {Mic,MicOff,Video,VideoOff,Phone,PhoneOff,MessageCircle,Send,X,Users,PhoneIncoming,Clock,
+} from "lucide-react"
 import useSocket from "@/ZustandStore/SocketStore"
 
 const VideoChat = () => {
@@ -19,6 +22,7 @@ const VideoChat = () => {
 
   const socket = useSocket((state) => state.socket)
   const socketId = useSocket((state) => state.socketId)
+  const VideoCall = useSocket((state) => state.VideoCall)
 
   const localVideoRef = useRef()
   const remoteVideoRef = useRef()
@@ -30,6 +34,8 @@ const VideoChat = () => {
   const timeoutRef = useRef(null)
   const countdownRef = useRef(null)
   const isChatOpenRef = useRef(isChatOpen)
+
+  console.log(VideoCall, "vdocall")
 
   const initializePeerConnection = () => {
     if (peerConnection.current) {
@@ -75,6 +81,14 @@ const VideoChat = () => {
       }
     }
   }
+
+  useEffect(() => {
+    // Auto-call when VideoCall state is available and component is initialized
+    if (socketId && VideoCall && VideoCall.receiverId && VideoCall.isActive && isInitialized) {
+      console.log("Auto-initiating call with VideoCall data:", VideoCall)
+      handleCall()
+    }
+  }, [socketId, VideoCall, isInitialized])
 
   useEffect(() => {
     if (!socket) return
@@ -235,8 +249,15 @@ const VideoChat = () => {
       return
     }
 
-    const peerId = prompt("Enter the socket ID to call:")
-    if (!peerId) return
+    // Use VideoCall data if available, otherwise prompt for manual input
+    let peerId
+    if (VideoCall && VideoCall.receiverId && VideoCall.isActive) {
+      peerId = VideoCall.receiverId
+      console.log("Auto-calling user from VideoCall state:", peerId)
+    } else {
+      peerId = prompt("Enter the socket ID to call:")
+      if (!peerId) return
+    }
 
     try {
       setRemoteSocketId(peerId)
@@ -251,8 +272,8 @@ const VideoChat = () => {
       await peerConnection.current.setLocalDescription(offer)
 
       socket.emit("call-user", { offer, to: peerId })
-      console.log("calling the user")
-      showNotification("Calling...", "info")
+      console.log("calling the user:", peerId)
+      showNotification(`Calling ${VideoCall?.reciverName || peerId}...`, "info")
     } catch (error) {
       console.error("Error making call:", error)
       showNotification("Failed to make call. Please try again.", "error")
@@ -358,6 +379,8 @@ const VideoChat = () => {
         timestamps: new Date().toISOString(),
       }
 
+      console.log("reciever:",remoteSocketId)
+
       socket.emit("Send-peer2peer", messageData)
       setMessages((prev) => [
         ...prev,
@@ -391,7 +414,7 @@ const VideoChat = () => {
   }, [isChatOpen])
 
   return (
-    <div className="flex flex-col lg:flex-row h-screen bg-gray-900 text-white">
+    <div className="flex flex-col lg:flex-row h-screen bg-gray-900 text-white  md:ml-14">
       {/* Enhanced Incoming Call Modal */}
       {incomingCall && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center">

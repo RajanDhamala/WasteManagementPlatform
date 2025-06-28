@@ -1,23 +1,7 @@
 import { useState, useRef, useCallback, memo } from "react"
 import { useQuery, useMutation } from "@tanstack/react-query"
 import axios from "axios"
-import {
-  Upload,
-  X,
-  ImageIcon,
-  Film,
-  Clock,
-  Check,
-  Trash2,
-  Plus,
-  ArrowLeft,
-  ChevronLeft,
-  ArrowLeftRight,
-  MapPin,
-  Calendar,
-  Camera,
-  AlertCircle,
-} from "lucide-react"
+import {Upload,X,ImageIcon,Film,Clock,Check,Trash2,Plus,ArrowLeft,ChevronLeft,ArrowLeftRight,MapPin,Calendar,Camera,AlertCircle,} from "lucide-react"
 
 const UPLOAD_TYPES = {
   beforeAfter: { 

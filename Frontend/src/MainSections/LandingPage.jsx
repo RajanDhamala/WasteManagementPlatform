@@ -183,14 +183,7 @@ const LandingPage = () => {
                <EventCard
   key={event._id}
   title={event.title}
-  date={new Date(`${event.date}T${event.time}`).toLocaleString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  })}
+  date={new Date(event.date).toDateString()}
   location={event.location}
   EventImg={event.EventImg.length > 0 ? event.EventImg : ['./defulthu.jpg']}
   status={event.EventStatus}

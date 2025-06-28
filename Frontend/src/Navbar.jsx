@@ -1,19 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { 
-  Calendar, 
-  Users, 
-  X, 
-  Home, 
-  LogIn, 
-  UserPlus, 
-  ChevronLeft, 
-  ChevronRight,
-  Menu,
-  User,
-  Settings,
-  LogOut
-} from "lucide-react";
+import { Calendar, Users, X, Home, LogIn, UserPlus, ChevronLeft, ChevronRight,Menu,User,Settings,LogOut,MessageCircle} from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import axios from "axios";
 import useStore from "./ZustandStore/UserStore";
@@ -25,14 +12,12 @@ const Navbar = () => {
   const navigate = useNavigate();
   const CurrentUser=useStore((state)=>state.CurrentUser)
   const clearCurrentUser=useStore((state)=>state.clearCurrentUser)
-  console.log(CurrentUser)
-
 
   const menuItems = [
     { name: "Home", path: "/", icon: Home },
     { name: "Events", path: "/events", icon: Calendar },
     { name: "Community", path: "/community", icon: Users },
-    { name: "Settings", path: "/settings", icon: Settings },
+    { name: "Chats", path: "/qr", icon: MessageCircle},
   ];
   
   const authItems = [

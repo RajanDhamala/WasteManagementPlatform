@@ -6,19 +6,15 @@ import Navbar from "./Navbar";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import TanStack from "./TanStack";
 import {LandingPage,EventSection,SlugEvent,Login,Register,Dashboard,VerifyUser,ForgotPassword,ScrappedNews,ComminitySection,EventReportSection,} from "./LazyLoading/Lazyloading";
-import Paginationme from "./MainSections/Pagination";
 import Cookies from "js-cookie";
-import ImageComparer from "./AiComponnets/ImageComparer";
-import ChessBoard from "./ChessBoard";
-import AboutUs from "./MainSections/AboutPage";
 import CreateReport from "./MainSections/CreateReport";
 import QrCode from "./MainSections/QrCode";
 import ChatApp from "./MainSections/QrGetter";
 import ProtectedRoute from "./Authencation/AuthControl";
 import useStore from "./ZustandStore/UserStore";
-import ChatMain from "./EventChat/ChatMain";
 import useSocket from "./ZustandStore/SocketStore";
 import VideoChat from "./MainSections/VideoCall";
+import Trial from "./Trial";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -66,6 +62,7 @@ const App = () => {
       <ReactQueryDevtools initialIsOpen={false}/>
       <BrowserRouter>
         <Alert />
+        <Navbar/>
         <Suspense fallback={<Loader />}>
           <Routes>
             <Route path="/" element={<LandingPage />} />
@@ -80,13 +77,12 @@ const App = () => {
             <Route path="/community" element={<ComminitySection />} />
             <Route path="/tanstack" element={<TanStack />} />
             <Route path="/eventreport/:title" element={<ProtectedRoute><EventReportSection/></ProtectedRoute>} />
-            <Route path="/compare" element={<ImageComparer />} />
-            <Route path="/about" element={<AboutUs />} />
-            <Route path='makereport' element={<CreateReport/>}></Route>
-            <Route path={'scan'} element={<QrCode/>}> </Route>
-            <Route path={'chat'} element={<ChatMain/>}> </Route>
-            <Route path={'qr'} element={<ChatApp/>}> </Route>
-             <Route path={'video'} element={<VideoChat/>}> </Route>
+            <Route path='/makereport' element={<CreateReport/>}></Route>
+            <Route path={'/scan'} element={<QrCode/>}> </Route>
+            <Route path={'/chat'} element={<ChatMain/>}> </Route>
+            <Route path={'/qr'} element={<ChatApp/>}> </Route>
+             <Route path={'/call'} element={<VideoChat/>}> </Route>
+             <Route path={'/trial'} element={<Trial/>}></Route>
           </Routes>
         </Suspense>
       </BrowserRouter>
