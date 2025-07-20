@@ -14,7 +14,7 @@ const Alert = ({ autoClose = true, duration = 4000 }) => {
     error: "bg-red-500 text-white",
     warning: "bg-yellow-500 text-white",
     info: "bg-blue-500 text-white",
-    update: "bg-indigo-500 text-white",
+    update: "bg-orange-500 text-white",
   };
 
   const icons = {

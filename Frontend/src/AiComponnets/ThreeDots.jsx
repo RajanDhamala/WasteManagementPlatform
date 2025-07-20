@@ -10,7 +10,7 @@ import {
 const ThreeDotMenu = ({ onEdit, onDelete, onReport, showDetails=true }) => {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-gray-100">
+      <DropdownMenuTrigger className="h-8 w-8 flex items-center focus:outline-none focus:ring-0 justify-center rounded-full hover:bg-gray-100">
         <MoreVertical className="h-4 w-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-32">

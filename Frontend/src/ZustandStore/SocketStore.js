@@ -3,22 +3,38 @@ import { io } from 'socket.io-client';
 
 const useSocket = create((set, get) => ({
   socket: null,
-  socketId: null, 
+  socketId: null,
+  isConnecting: false,
   VideoCall: null,
 
   connect: (url) => {
-    if (get().socket) return;
-    const socket = io(url, {
+    const { socket, isConnecting } = get();
+    if (socket || isConnecting) return; // 🧠 Guard
+
+    set({ isConnecting: true });
+
+    const newSocket = io(url, {
       withCredentials: true,
-      transports: ['websocket', 'polling'],
+        reconnection: false,
+  reconnectionAttempts: 3,       
+  reconnectionDelay: 2000,       
+  reconnectionDelayMax: 5000, 
+      transports: ['websocket'], 
     });
 
-    socket.on('connect', () => {
-      set({ socket, socketId: socket.id });
+    newSocket.on('connect', () => {
+      set({ socket: newSocket, socketId: newSocket.id, isConnecting: false });
+      console.log("✅ Connected:", newSocket.id);
     });
 
-    socket.on('disconnect', () => {
-      set({ socket: null, socketId: null });
+    newSocket.on('disconnect', (reason) => {
+      console.log("Disconnected:", reason);
+      set({ socket: null, socketId: null, isConnecting: false });
+    });
+
+    newSocket.on('connect_error', (err) => {
+      console.log("Connect error:", err);
+      set({ isConnecting: false });
     });
   },
 
@@ -26,16 +42,12 @@ const useSocket = create((set, get) => ({
     const socket = get().socket;
     if (socket) {
       socket.disconnect();
-      set({ socket: null, socketId: null });
+      set({ socket: null, socketId: null, isConnecting: false });
     }
   },
-  setVideoCall: (videoCall) => {
-    set({ VideoCall: videoCall });
-  },
 
-  removeVideoCall: () => {
-    set({ VideoCall: null });
-  }
+  setVideoCall: (videoCall) => set({ VideoCall: videoCall }),
+  removeVideoCall: () => set({ VideoCall: null }),
 }));
 
 export default useSocket;

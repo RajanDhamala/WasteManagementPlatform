@@ -77,8 +77,8 @@ function ChatApp() {
       console.log("Raw API response:", response.data.data)
 
       const transformedData = (response.data.data || []).map((user) => ({
-        _id: user.id,
-        title: user.user,
+        _id:user.userId,
+        title: user.name,
         Messages: [],
         type: "direct",
         date: new Date().toISOString(),
@@ -347,13 +347,14 @@ function ChatApp() {
       }))
     } else {
       // Send the socket message for direct chat
-      console.log("peer 2peer msg sent",newMessage.message)
+      console.log("peer 2peer msg sent",activeChat)
+      console.log(newMessage)
       socket.emit("Send-peer2peer", {
         messageId: MessageId,
         message: newMessage.message,
         sender: newMessage.senderName,
         senderId: newMessage.senderId,
-        reciever: activeChat.title, // Use the chat ID as receiver
+        reciever: activeChat._id, // Use the chat ID as receiver
         timestamps: newMessage.timestamp,
       })
 

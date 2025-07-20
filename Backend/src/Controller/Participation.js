@@ -11,16 +11,10 @@ import Participation from '../Schema/Participation.js'
 
 dotenv.config()
 const CreateQr = asyncHandler(async (req, res) => {
-    console.log('hello')
     const io=getIo()
     const eventId = '67dd36b46576d57e23faf542';
     const validTill = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    const existingQrDocument = await QrCode.findOne({ event: eventId });
-
-    if (existingQrDocument && existingQrDocument.qrData.length > 0) {
-        throw new ApiError(400, 'QR already generated for this event');
-    }
     const event = await Event.findById(eventId)
         .populate('Participants', 'name email')
         .select('Participants _id date location');
@@ -110,6 +104,17 @@ const VerifyQr = asyncHandler(async (req, res) => {
   
       return res.send(new ApiResponse(200, 'Successfully decrypted and deleted QR', data));
 });
+
+const GetUrQrs=asyncHandler(async(req,res)=>{
+    const user=req.user;
+    if(!user) throw new ApiError(400,'Please include cookies and eventId in req')
+    const eventId = req.query.eventId;
+    if (!eventId) throw new ApiError(400, 'Event ID is required');
+    
+})
+
+
+
 export {
     CreateQr,
     VerifyQr

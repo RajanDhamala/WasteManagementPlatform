@@ -84,7 +84,7 @@ const SendQr = async (title, location, time, qrHash, username, recipientEmail) =
     `;
 
     await Transponder.sendMail({
-      from: process.env.GMAIL_USER, 
+      from: process.env.EMAIL, 
       to: recipientEmail,         
       subject: `Your QR Code for ${title}`,
       html: htmlContent,
@@ -96,5 +96,42 @@ const SendQr = async (title, location, time, qrHash, username, recipientEmail) =
   }
 };
 
+const TrialMail = async (recipientEmail, username = "User", subject = "Trial Email", message = "This is a test email.") => {
+  const Transponder = nodemailer.createTransport({
+    service: "gmail",
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept",
+    },
+    auth: {
+      user: process.env.EMAIL,
+      pass: process.env.PASSWORD,
+    },
+  });
 
-export { sendMail, generateOTP,SendQr };
+  try {
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; font-size: 16px; color: #333;">
+        <h3>Hello ${username},</h3>
+        <p>${message}</p>
+        <p>This email is a test/trial from our email system.</p>
+        <p>Thank you!</p>
+      </div>
+    `;
+
+    await Transponder.sendMail({
+      from: process.env.EMAIL,
+      to: recipientEmail,
+      subject: subject,
+      html: htmlContent,
+    });
+
+    console.log(`Trial email sent to ${recipientEmail}`);
+  } catch (error) {
+    console.error("Error while sending trial email to", recipientEmail, error);
+  }
+};
+
+
+export { sendMail, generateOTP,SendQr,TrialMail };

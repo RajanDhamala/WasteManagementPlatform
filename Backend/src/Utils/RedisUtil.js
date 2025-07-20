@@ -1,3 +1,4 @@
+// redisClient.ts
 import { createClient } from 'redis';
 import dotenv from 'dotenv';
 
@@ -18,4 +19,8 @@ const connectRedis = async () => {
   }
 };
 
-export { Redisclient, connectRedis };
+
+const pubClient = createClient({ url: process.env.REDIS_URL });
+const subClient = pubClient.duplicate(); 
+
+export { Redisclient, connectRedis, pubClient, subClient };

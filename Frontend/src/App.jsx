@@ -35,27 +35,31 @@ const Loader = () => {
 };
 
 const App = () => {
-  const setCurrentUser = useStore((state) => state.setCurrentUser);
-  const socket = useSocket((state) => state.socket);
-  const connect = useSocket((state) => state.connect);
-  const socketId = useSocket((state) => state.socketId);
+const setCurrentUser = useStore((state) => state.setCurrentUser);
+const socket = useSocket((state) => state.socket);
+const socketId = useSocket((state) => state.socketId);
+const connect = useSocket((state) => state.connect);
+const disconnect = useSocket((state) => state.disconnect);
+const isConnecting = useSocket((state) => state.isConnecting);
 
-  useEffect(() => {
-    const user = Cookies.get("CurrentUser");
-    if (user) {
-      try {
-        setCurrentUser(JSON.parse(user));
-      } catch (error) {
-        console.error("Error parsing user:", error);
-      }
+useEffect(() => {
+  const user = Cookies.get("CurrentUser");
+  if (user) {
+    try {
+      setCurrentUser(JSON.parse(user));
+    } catch (error) {
+      console.error("Error parsing user:", error);
     }
-  }, []);
+  }
+}, []);
 
-  useEffect(() => {
-    if (!socket) {
-      connect('http://localhost:8000');
-    }
-  }, [socket, connect]);
+useEffect(() => {
+  if (!socket && !isConnecting) {
+    connect('http://localhost:8000');
+  }
+}, [socket, isConnecting, connect]); //
+
+
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -79,7 +83,6 @@ const App = () => {
             <Route path="/eventreport/:title" element={<ProtectedRoute><EventReportSection/></ProtectedRoute>} />
             <Route path='/makereport' element={<CreateReport/>}></Route>
             <Route path={'/scan'} element={<QrCode/>}> </Route>
-            <Route path={'/chat'} element={<ChatMain/>}> </Route>
             <Route path={'/qr'} element={<ChatApp/>}> </Route>
              <Route path={'/call'} element={<VideoChat/>}> </Route>
              <Route path={'/trial'} element={<Trial/>}></Route>

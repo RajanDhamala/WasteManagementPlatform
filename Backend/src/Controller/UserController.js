@@ -23,40 +23,7 @@ const RegisterUser = asyncHandler(async (req, res) => {
         return res.send(new ApiResponse(400, 'Please Fill All The Fields', null));
     }
     try {
-        const existingUserEmail = await User.findOne({ email: email });
-        const existingUserUsername = await User.findOne({ username: username });
 
-        if (existingUserEmail) {
-            return res.send(new ApiResponse(400, 'Email already exists', null));
-        }
-
-        if (existingUserUsername) {
-            return res.send(new ApiResponse(400, 'Username already exists', null));
-        }
-
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const user = new User({
-            name: username,
-            email: email,
-            password: hashedPassword,
-        });
-
-        await user.save();
-
-        const UserActivity= new UserActivty({
-          User:user._id,
-          activity:[{
-              type:"User registartion",
-              time:Date.now(),
-              ip:req.ip,
-              browser:req.useragent.browser,
-              location:'hello hi byee',
-              Source:req.useragent.source
-          }]
-      })
-      await UserActivity.save();
-        console.log("User registered successfully");
-        res.send(new ApiResponse(200, 'User Registered Successfully', null));
     } catch (err) {
         console.log(err);
         res.send(new ApiResponse(500, 'Server Error', null));
@@ -440,7 +407,7 @@ const browserdetails=asyncHandler(async(req,res)=>{
 })
 
 const ActiveUsers=asyncHandler(async(req,res)=>{
-  const users=GetUsers()
+  const users=await GetUsers()
   console.log(users)
   return res.send(new ApiResponse(200,'Active users list:',users))
 })
