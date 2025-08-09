@@ -22,7 +22,7 @@ const ParticipationSchema = new mongoose.Schema({
                 ref: 'User'
             },UUId:{
                 type:String,
-                unique:true
+                required:true
             }
         }
     ]

@@ -23,6 +23,19 @@ const RegisterUser = asyncHandler(async (req, res) => {
         return res.send(new ApiResponse(400, 'Please Fill All The Fields', null));
     }
     try {
+      const existingUser = await User.findOne({ email }).select('email');
+      console.log(existingUser);
+      if (existingUser) {
+        return res.send(new ApiResponse(400, 'User Already Exists', null));
+      }
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const newUser = new User({
+        name: username,
+        email,
+        password: hashedPassword,
+      });
+      const savedUser = await newUser.save();
+    return res.send(new ApiResponse(200, 'User Registered Successfully', ));
 
     } catch (err) {
         console.log(err);
@@ -369,7 +382,23 @@ const LeaveEvent = asyncHandler(async (req, res) => {
 
     await event.save();
     await userRecord.save();
-    await Redisclient.del(["events:all","events:latest","events:oldest","events:completed","events:pending"]);
+async function invalidateEventsCache() {
+  const redisKey = `user:${req.user._id}`;
+
+  const userData = await Redisclient.json.get(redisKey);
+  console.log("userData:", userData);
+
+  if (userData?.groups && Array.isArray(userData.groups)) {
+    if (userData.groups.includes(eventId)) {
+      const updatedGroups = userData.groups.filter(id => id !== eventId);
+      await Redisclient.json.set(redisKey, '.groups', updatedGroups);
+      console.log(`Removed ${eventId} from ${redisKey} groups`);
+    }
+  }
+const key=(`JoinedEvents${req.user._id}`)
+await Redisclient.del(key)
+}
+      await invalidateEventsCache();
 
     return res.send(new ApiResponse(200, "Left Event Successfully", null));
   } catch (err) {
@@ -412,6 +441,59 @@ const ActiveUsers=asyncHandler(async(req,res)=>{
   return res.send(new ApiResponse(200,'Active users list:',users))
 })
 
+
+const UpdateLocation = asyncHandler(async (req, res) => {
+  const user = req.user;
+  const { location } = req.body;
+
+  if (!user || !location || !location.lat || !location.lng) {
+    throw new ApiResponse(400, 'Invalid Credentials or location', null);
+  }
+
+  const geoJSONPoint = {
+    type: 'Point',
+    coordinates: [location.lng, location.lat]
+  };
+
+  const updatedUser = await User.findByIdAndUpdate(
+    user._id,
+    { locationPoint: geoJSONPoint },
+    { new: true }
+  );
+
+  if (!updatedUser) {
+    return res.send(new ApiResponse(400, 'User not found', null));
+  }
+
+  return res.send(new ApiResponse(200, 'Location updated successfully', updatedUser));
+});
+
+
+const newPassword=asyncHandler(async(req,res)=>{
+  const email=req.user.email;
+const {password}=req.body;
+
+console.log("email:",req.user.email);
+console.log("password:",password);
+if(!password || !email){
+  return res.send(new ApiResponse(400, 'Please fill all the fields', null));
+}
+try{
+  const existingUser=await User.findOne({email:email}).select('password _id');
+  if(!existingUser){
+    throw new ApiResponse(400, 'User not found', null);
+  }
+  const hashedPassword=await bcrypt.hash(password,10);
+  existingUser.password=hashedPassword;
+  await existingUser.save();
+  return res.send(new ApiResponse(200, 'Password changed successfully', null));
+}catch(Err){
+    console.log(Err);
+    throw new ApiResponse(500, 'Internal Server Error', null);
+  }
+}
+)
+
 export {
     RegisterUser,
     LoginUser,
@@ -426,5 +508,7 @@ export {
     SeeJoinedEvents,
     ChangePassword,
     browserdetails,
-    ActiveUsers
+    ActiveUsers,
+    UpdateLocation,
+    newPassword
 }

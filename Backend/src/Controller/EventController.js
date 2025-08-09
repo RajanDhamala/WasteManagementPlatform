@@ -8,21 +8,34 @@ import Review from '../Schema/Review.js'
 import ApiError from '../Utils/ApiError.js'
 import { Redisclient } from '../Utils/RedisUtil.js'
 import axios from 'axios';
+import SetQrJob from '../Jobs/AgendaFxns.js'
+import { error } from 'console'
 
 dotenv.config()
 
   const EventForm = asyncHandler(async (req, res) => {
     try {
+      console.log(req.body)
       const user=req.user;
       console.log("User:",user);
-      const { title, date, time, location, description, requiredVolunteers, problemStatement } = req.body;
-      const images = req.files;
-      console.log("Title:", title, "Date:", date, "Time:", time, "Location:", location,
-        "Description:", description, "Required Volunteers:", requiredVolunteers, "Problem Statement:", problemStatement);
-      console.log("Images:", images);
+      const { title, date, time, location, description, requiredVolunteers, problemStatement,coordinates } = req.body;
 
-      const slug = title.trim().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').toLowerCase();
-  
+      const submittedDate = new Date(date)
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+if (submittedDate < today) {
+  throw new Error('Date cannot be in the past.');
+}
+      const images = req.files; 
+
+
+    const slug = title.trim().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').toLowerCase();
+    const coordsObj = JSON.parse(coordinates); 
+
+    const locationPoint = {
+    type: "Point",
+    coordinates: [coordsObj.lng, coordsObj.lat] 
+};
       const imgPaths = [];
   
       for (const img of images) {
@@ -41,9 +54,22 @@ dotenv.config()
         problemStatement: problemStatement,
         EventImg: imgPaths,
         Host: req.user._id,
+        coordinates: coordinates,
+        locationPoint: locationPoint,
       });
   
       await event.save();
+  async function invalidateEventsCache() {
+  const keys = await Redisclient.sMembers("events:cache_keys");
+  if (keys.length > 0) {
+    await Redisclient.del(...keys);
+    await Redisclient.del("events:cache_keys");
+    console.log("Invalidated cached event list keys");
+  }
+}
+      await invalidateEventsCache();
+      await SetQrJob(event._id,date); // Schedule QR generation job
+
       return res.send(new ApiResponse(200, 'Event Form Submitted Successfully', imgPaths));
     } catch (err) {
       console.log("Error in Event Form", err);
@@ -70,7 +96,7 @@ dotenv.config()
         }
 
         const response = await Event.findOne({ title })
-            .select("title date time location description VolunteersReq problemStatement EventImg EventRating Host")
+            .select("title date time location description VolunteersReq problemStatement EventImg EventRating Host locationPoint")
             .populate({
                 path: "EventReview",
                 select: "Review Rating Reviewer createdAt",
@@ -100,160 +126,182 @@ dotenv.config()
     }
 });
 
-
 const LoadEvents = asyncHandler(async (req, res) => {
-    try {
-        const { filter = 'all', page = 1, limit = 10 } = req.params;
-        const parsedPage = parseInt(page);
-        const parsedLimit = parseInt(limit);
+  try {
+    const { filter = "all", page = 1, limit = 10 } = req.params;
+    const parsedPage = parseInt(page);
+    const parsedLimit = parseInt(limit);
 
-        let matchStage = {};
-        let sortStage = { date: 1 };
+    let matchStage = {};
+    let sortStage = { date: 1 };
+    let userCoordinates = null;
+    let useGeoQuery = false;
 
-        // Configure filter conditions
-        switch (filter) {
-            case "latest":
-                sortStage = { date: -1 }; // Changed to -1 for latest first
-                break;
-            case "oldest":
-                sortStage = { date: 1 };
-                break;
-            case "completed":
-                matchStage = { EventStatus: "completed" };
-                break;
-            case "pending":
-                matchStage = { EventStatus: "pending" };
-                break;
-            default:
-                break;
-        }
-
-        // Create cache key
-        const cacheKey = `events:${filter}:page-${parsedPage}:limit-${parsedLimit}`;
-        const cachedData = await Redisclient.json.get(cacheKey);
-        
-        if (cachedData) {
-            console.log("Returning Cached Data");
-            return res.status(200).json({
-                statusCode: 200,
-                message: "Events Loaded Successfully (Cached)",
-                data: {
-                    events: cachedData.events,
-                    totalEvents: cachedData.totalEvents,
-                    currentPage: cachedData.currentPage,
-                    totalPages: cachedData.totalPages,
-                    hasMore: cachedData.hasMore
-                }
-            });
-        }
-
-        // Get total count first
-        const totalEvents = await Event.countDocuments(matchStage);
-        const totalPages = Math.ceil(totalEvents / parsedLimit);
-        const skip = (parsedPage - 1) * parsedLimit;
-
-        // Main query with pagination
-        const events = await Event.aggregate([
-            { $match: matchStage },
-            { $sort: sortStage },
-            { $skip: skip },
-            { $limit: parsedLimit },
-            {
-                $project: {
-                    _id: 1,
-                    EventImg: { $slice: ["$EventImg", 2] },
-                    title: 1,
-                    EventStatus: 1,
-                    date: 1,
-                    time: 1,
-                    location: 1,
-                    participantCount: { $size: "$Participants" },
-                }
-            }
-        ]);
-
-        const responseData = {
-            events,
-            totalEvents,
-            currentPage: parsedPage,
-            totalPages,
-            hasMore: parsedPage < totalPages
-        };
-
-        // Cache the response
-        await Redisclient.json.set(cacheKey, "$", responseData);
-        await Redisclient.expire(cacheKey, 300); // 5 minutes cache
-
-        return res.status(200).json({
-            statusCode: 200,
-            message: "Events Loaded Successfully",
-            data: responseData
-        });
-
-    } catch (err) {
-        console.error("Error in Load Events:", err);
-        return res.status(500).json({
-            statusCode: 500,
-            message: "Internal Server Error",
-            error: err.message
-        });
+    if (filter === "nearby") {
+      if (!req.user) throw new ApiError(400, "User not authenticated for nearby events");
+      const user = await User.findById(req.user._id);
+      if (!user || !user.locationPoint || !user.locationPoint.coordinates) {
+        return res.status(400).json({ message: "User location not set" });
+      }
+      userCoordinates = user.locationPoint.coordinates; // [lng, lat]
+      useGeoQuery = true;
     }
+
+    switch (filter) {
+      case "latest":
+        sortStage = { createdAt: -1 };
+        break;
+      case "oldest":
+        sortStage = { createdAt: 1 };
+        break;
+      case "completed":
+        matchStage = { EventStatus: "completed" };
+        break;
+      case "pending":
+        matchStage = { EventStatus: "pending" };
+        break;
+      // 'all' or other filters do nothing extra
+    }
+
+    const cacheKey = `events:${filter}:page-${parsedPage}:limit-${parsedLimit}`;
+
+    // Check cache
+    const cachedData = await Redisclient.json.get(cacheKey);
+    if (cachedData) {
+      return res.status(200).json({
+        statusCode: 200,
+        message: "Events Loaded Successfully (Cached)",
+        data: cachedData,
+      });
+    }
+
+    const skip = (parsedPage - 1) * parsedLimit;
+    const query = { ...matchStage };
+
+    if (useGeoQuery) {
+      // radius in kilometers
+      const radiusKm = 5;
+      const earthRadiusKm = 6378.1;
+      const radiusRadians = radiusKm / earthRadiusKm;
+
+      query.locationPoint = {
+        $geoWithin: {
+          $centerSphere: [userCoordinates, radiusRadians],
+        },
+      };
+    }
+
+    const totalEvents = await Event.countDocuments(query);
+
+    const events = await Event.find(query)
+      .sort(sortStage)
+      .skip(skip)
+      .limit(parsedLimit)
+      .select({
+        EventImg: { $slice: 2 },
+        title: 1,
+        EventStatus: 1,
+        date: 1,
+        time: 1,
+        location: 1,
+        locationPoint: 1,
+        Participants: 1,
+      })
+      .lean();
+
+    const eventsWithParticipantCount = events.map((ev) => ({
+      ...ev,
+      participantCount: ev.Participants ? ev.Participants.length : 0,
+    }));
+
+    const totalPages = Math.ceil(totalEvents / parsedLimit);
+
+    const responseData = {
+      events: eventsWithParticipantCount,
+      totalEvents,
+      currentPage: parsedPage,
+      totalPages,
+      hasMore: parsedPage < totalPages,
+    };
+
+    await Redisclient.json.set(cacheKey, "$", responseData);
+    await Redisclient.expire(cacheKey, 300);
+
+    // Conditionally track cache keys to invalidate later
+    if (filter !== "nearby") {
+      await Redisclient.sAdd("events:cache_keys", cacheKey);
+    }
+
+    return res.status(200).json({
+      statusCode: 200,
+      message: "Events Loaded Successfully",
+      data: responseData,
+    });
+  } catch (err) {
+    console.error("Error loading events:", err);
+    return res.status(500).json({
+      statusCode: 500,
+      message: "Server Error",
+      error: err.message,
+    });
+  }
 });
 
 
-  
-  const joinEvent = asyncHandler(async (req, res) => {
-    console.log("Join Event Controller");
-    const user = req.user;
-    const { _id } = req.body;
-    console.log("User:", user._id,"event id :",_id);
-  
-    if (!user) {
-      return res.send(new ApiResponse(400, "Invalid Credentials", null));
-    }
-  
-    if (!_id) {
-      return res.send(new ApiResponse(400, "Event Id is required", null));
-    }
-  
-    try {
-      const event = await Event.findOne({ title: _id });
-      if (!event) {
-        return res.send(new ApiResponse(404, "Event not found", null));
-      }
-  
-      const existingUser = await User.findOne({ _id: user._id })
-        .select("JoinedEvents _id")
-        .populate({
-          path: "JoinedEvents",
-          select: "date",
-        });
-  
-      console.log("Existing User:", existingUser);
-      if (!existingUser) {
-        return res.send(new ApiResponse(404, "User not found", null));
-      }
-  
-      const isAlreadyJoined = event.Participants.includes(user._id);
-      if (isAlreadyJoined) {
-        return res.send(new ApiResponse(400, "You had already joined this event", null));
-      }
-  
-      event.Participants.push(user._id);
-      existingUser.JoinedEvents.push(event._id);
-  
-      await existingUser.save();
-      await event.save();
-      const data = await Redisclient.json.numIncrBy('events:all', `$[?(@.title=="${_id}")].participantCount`, 1);
-      console.log("Participant count incremented successfully:", data);
+const joinEvent = asyncHandler(async (req, res) => {
+  console.log("Join Event Controller");
+  const user = req.user;
+  const { _id } = req.body;
+  console.log("User:", user?._id, "event id:", _id);
 
+  if (!user) {
+    return res.send(new ApiResponse(400, "Invalid Credentials", null));
+  }
 
-      return res.send(new ApiResponse(200, "Joined Event Successfully", null));
-    } catch (err) {
-      console.log("Error in Join Event", err);
-      return res.send(new ApiResponse(500, "Internal Server Error", null));
+  if (!_id) {
+    return res.send(new ApiResponse(400, "Event Id is required", null));
+  }
+
+  try {
+    const event = await Event.findOne({ title: _id });
+    if (!event) {
+      return res.send(new ApiResponse(404, "Event not found", null));
     }
-  });
+
+    const existingUser = await User.findOne({ _id: user._id })
+      .select("JoinedEvents _id")
+      .populate("JoinedEvents", "date");
+
+    if (!existingUser) {
+  throw new ApiError(404, "User not found");
+    }
+
+    if (event.Participants.includes(user._id)) {
+    throw new ApiError(400, "You have already joined this event",error);
+    }
+
+    event.Participants.push(user._id);
+    existingUser.JoinedEvents.push(event._id);
+    const key=(`JoinedEvents${req.user._id}`)
+    await Redisclient.del(key)
+    await existingUser.save();
+    await event.save();
+
+async function invalidateEventsCache() {
+  const keys = await Redisclient.sMembers("events:cache_keys");
+  if (keys.length > 0) {
+    await Redisclient.del(...keys);
+    await Redisclient.del("events:cache_keys");
+    console.log("Invalidated cached event list keys");
+  }
+}
+      await invalidateEventsCache();
+    return res.send(new ApiResponse(200, "Joined Event Successfully", null));
+  } catch (err) {
+    console.error("Error in Join Event:", err);
+    throw new ApiError(500, "Internal Server Error");
+  }
+});
 
   
   const removeParticipation=asyncHandler(async(req,res)=>{
@@ -293,50 +341,76 @@ const LoadEvents = asyncHandler(async (req, res) => {
     return res.send(new ApiResponse(200,"Subscribed Successfully",null));
   })
 
+const AddReview = asyncHandler(async (req, res, next) => {
+  const user = req.user;
+  if (!user) {
+    return next(new ApiError(400, "Invalid Credentials"));
+  }
 
- const AddReview = asyncHandler(async (req, res, next) => {
-    const user = req.user;
-    if (!user) {
-        return next(new ApiError(400, "Invalid Credentials"));
+  const { title: reqTitle, rating, review: ReviewText } = req.body;
+  if (!reqTitle || !rating || !ReviewText) {
+    return next(new ApiError(400, "Please fill all the fields"));
+  }
+
+  try {
+    const existingEvent = await Event.findOne({ title: reqTitle })
+      .select("EventReview title")
+      .populate({
+        path: "EventReview",
+        populate: { path: "Reviewer", select: "name ProfileImage" },
+      });
+
+    if (!existingEvent) {
+      throw new ApiError(404, "Event not found");
     }
 
-    const { title, rating, review: ReviewText } = req.body;
-    if (!title || !rating || !ReviewText) {
-        return next(new ApiError(400, "Please fill all the fields"));
-    }
+    const newReview = new Review({
+      Reviewer: user._id,
+      Review: ReviewText,
+      Rating: rating,
+      Event: existingEvent._id,
+    });
+    await newReview.save();
 
-    console.log("Title:", title, "Rating:", rating, "Review:", ReviewText);
+    existingEvent.EventReview.push(newReview._id);
+    await existingEvent.save();
+
+    const populatedReview = await Review.findById(newReview._id).populate({
+      path: "Reviewer",
+      select: "_id name ProfileImage",
+    });
+
+    const redisReviewData = {
+      _id: populatedReview._id.toString(),
+      Reviewer: {
+        _id: populatedReview.Reviewer._id.toString(),
+        name: populatedReview.Reviewer.name,
+        ProfileImage: populatedReview.Reviewer.ProfileImage || "",
+      },
+      Review: populatedReview.Review,
+      Rating: populatedReview.Rating,
+      createdAt: populatedReview.createdAt,
+    };
+
+    const cacheKey = `event:${existingEvent.title}`;
 
     try {
-        const existingEvent = await Event.findOne({ title: title }).select('EventReview title');
-
-        if (!existingEvent) {
-            throw new ApiError(404, "Event not found");
-        }
-
-        const existingReview = await Review.findOne({ Event: existingEvent._id, Reviewer: user._id });
-
-        if (existingReview) {
-            throw new ApiError(400, "You have already reviewed this event");
-        }
-
-        const review = new Review({
-            Reviewer: user._id,
-            Review: ReviewText,
-            Rating: rating,
-            Event: existingEvent._id
-        });
-
-        await review.save();
-
-        existingEvent.EventReview.push(review._id);
-        await existingEvent.save();
-
-        return res.status(200).json(new ApiResponse(200, "Review Added Successfully", null));
-    } catch (err) {
-        console.log("Error in Add Review:", err);
-        next(err);  
+      const cachedEvent = await Redisclient.json.get(cacheKey);
+      if (cachedEvent) {
+        await Redisclient.json.arrAppend(cacheKey, '.EventReview', redisReviewData);
+      } else {
+        console.warn("No cache found for event:", cacheKey);
+      }
+    } catch (redisErr) {
+      console.error("Redis error while updating review:", redisErr.message);
+      await Redisclient.del(cacheKey);
     }
+
+    return res.status(200).json(new ApiResponse(200, "Review Added Successfully", null));
+  } catch (err) {
+    console.error("Error in Add Review:", err);
+    return next(err);
+  }
 });
 
 
@@ -365,7 +439,7 @@ const RemoveReview = asyncHandler(async (req, res) => {
       { EventReview: reviewId },
       { $pull: { EventReview: reviewId } }, 
       { new: true }
-    ).select('EventReview');
+    ).select('EventReview title');
 
     if (!event) {
       return res.status(404).json(new ApiResponse(404, "Event not found", null));
@@ -373,6 +447,8 @@ const RemoveReview = asyncHandler(async (req, res) => {
 
     await Review.deleteOne({ _id: reviewId });
     console.log("Review Removed Successfully");
+    const cacheKey = `event:${event.title}`;
+    await Redisclient.del(cacheKey);
     return res.status(200).json(new ApiResponse(200, "Review Removed Successfully", { reviewId }));
 
   } catch (err) {
@@ -380,7 +456,6 @@ const RemoveReview = asyncHandler(async (req, res) => {
     return res.status(500).json(new ApiResponse(500, "Internal Server Error", null));
   }
 });
-
 
 const ClearALlReviews=asyncHandler(async(req,res)=>{
   const Reviews=await Review.find({}).select('_id');
@@ -525,6 +600,69 @@ const CacheJoinedEvent = async (userId) => {
   }
 };
 
+
+const changeStatus = asyncHandler(async (req, res) => {
+  const { eventId, status } = req.body;
+
+  if (!eventId || !status) {
+    return res.status(400).json(new ApiResponse(400, "Event ID and status are required", null));
+  }
+
+  try {
+    const event = await Event.findOneAndUpdate(
+      { _id: eventId, EventStatus: { $ne: status } }, 
+      { $set: { EventStatus: status } },
+      { new: true } 
+    );
+
+    if (!event) {
+     throw new ApiError(404, "Event not found or status already set to the requested value");
+    }
+    async function invalidateCompletedEventsCache() {
+  const keys = await Redisclient.sMembers("events:cache_keys");
+  const completedKeys = keys.filter((key) => key.startsWith("events:completed:"));
+
+  if (completedKeys.length > 0) {
+    await Redisclient.del(...completedKeys); // delete the keys
+    await Redisclient.sRem("events:cache_keys", ...completedKeys); // remove from tracking set
+    console.log("Invalidated completed event cache keys");
+  } else {
+    console.log("No completed event cache keys found");
+  }
+}
+    await invalidateCompletedEventsCache();
+    return res
+      .send(new ApiResponse(200, "Event status changed successfully", null));
+
+  } catch (err) {
+    console.error("Error in changing status:", err);
+    return res.status(500).json(new ApiResponse(500, "Internal Server Error", null));
+  }
+});
+
+
+const SearchEvents = asyncHandler(async (req, res) => {
+  const { keyword, type } = req.query;
+  if (!type || !keyword) {
+    return res.status(400).json(new ApiResponse(400, "Search query is required", null));
+  }
+
+  if (!['title', 'location'].includes(type)) {
+    return res.status(400).json(new ApiResponse(400, "Invalid search type", null));
+  }
+
+  const filter = {};
+  filter[type] = { $regex: keyword, $options: 'i' };
+
+  const event = await Event.find(filter)
+    .limit(4)  
+    .select('title _id date EventStatus location');
+
+  return res.status(200).json(new ApiResponse(200, "Events found", event));
+});
+
+
+
 export {
     EventForm,
     Eventinfo,
@@ -539,5 +677,7 @@ export {
     fetchEvents,
     HomeEvents,
     ActiveEvents,
-    CacheJoinedEvent
+    CacheJoinedEvent,
+    changeStatus,
+    SearchEvents
 }

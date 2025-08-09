@@ -142,23 +142,40 @@ const postData = asyncHandler(async (req, res) => {
 });
 
 const getAllEvents = asyncHandler(async (req, res) => {
-  const cachedData = await Redisclient.json.get('EVENTLIST', '$'); 
-console.log("john bange don")
-  if (cachedData) {
-    console.log('Data fetched from Redis');
-    return res.send(new ApiResponse(200, 'Successfully fetched data from cache', { events: cachedData }));
-  } else {
-    const events = await Event.find({}).select('title location');
+  const page = parseInt(req.query.page) || 1;
+  const limit = 8;
+  const skip = (page - 1) * limit;
+  const cacheKey = `EVENTLIST:page=${page}:limit=${limit}:sortedBy=createdAt`;
 
-    if (!events || events.length === 0) {
-      throw new ApiError(404, 'No events found');
-    }
-    await Redisclient.json.set('EVENTLIST', '$', events); 
+  const cachedData = await Redisclient.json.get(cacheKey, '.'); // note '.'
 
-    console.log('Data fetched from database');
-    return res.send(new ApiResponse(200, 'Successfully fetched data', { events }));
+  if (cachedData && cachedData.events) {
+    return res.send(new ApiResponse(200, 'Fetched from cache', {
+      events: cachedData.events,
+      page,
+      hasMore: cachedData.events.length === limit
+    }));
   }
+
+  const events = await Event.find({})
+    .select('title location createdAt')
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+
+  if (!events || events.length === 0) {
+    throw new ApiError(404, 'No events found');
+  }
+
+  await Redisclient.json.set(cacheKey, '.', { events }, { EX: 600 });
+
+  return res.send(new ApiResponse(200, 'Fetched from DB', {
+    events,
+    page,
+    hasMore: events.length === limit
+  }));
 });
+
 
 const CreateCommunityPost = asyncHandler(async (req, res) => {
   const { content, eventId } = req.body;

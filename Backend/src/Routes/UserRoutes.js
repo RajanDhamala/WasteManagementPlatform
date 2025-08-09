@@ -1,10 +1,11 @@
 import express from 'express';
 import AuthMiddleware from '../Middleware/JwtMiddleware.js';
-import { RegisterUser,LoginUser,LogoutUser,UpdateProfile,UserProfile,ForgotPassword,verifyPasswordOtp,VerifyUser,VerifyVerficationOtp,LeaveEvent,SeeJoinedEvents,browserdetails,ActiveUsers } from '../Controller/UserController.js';
+import { RegisterUser,LoginUser,LogoutUser,UpdateProfile,UserProfile,ForgotPassword,verifyPasswordOtp,VerifyUser,VerifyVerficationOtp,LeaveEvent,SeeJoinedEvents,browserdetails,ActiveUsers,UpdateLocation,newPassword} from '../Controller/UserController.js';
 import UpdatePfp from '../Middleware/ProfilePic.js';
 import {rateLimit} from 'express-rate-limit';
 import { AiApi } from '../Utils/AiIntegration.js';
 import { spawn } from 'child_process';
+import User from '../Schema/User.js';
 
 const UserRoute=express.Router();
 
@@ -66,5 +67,9 @@ UserRoute.get('/ai',(req,res)=>{
 })
 
 UserRoute.get('/current',ActiveUsers)
+
+UserRoute.put('/updateLocation',AuthMiddleware,UpdateLocation);
+
+UserRoute.post('/resetpassword',AuthMiddleware,newPassword);
 
 export default UserRoute;

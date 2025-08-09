@@ -54,9 +54,27 @@ const UserSchema=new mongoose.Schema({
     },isBlocked:{
         type:Boolean,
         default:false
+    },locationPoint: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number], 
+      default: [0, 0]
+    },
+    privateKey:{
+        type:String,
+        default:""
+    },publicKey:{
+        type:String,
+        default:""
     }
+  }
 },{timestamps:true})
 
-const User= mongoose.model('User',UserSchema)
+UserSchema.index({ locationPoint: "2dsphere" });
 
-export default User
+const User = mongoose.model('User', UserSchema);
+export default User;

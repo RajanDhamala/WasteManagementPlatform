@@ -30,7 +30,18 @@ const DecrptQr=async(hashedQr)=>{
     }
 }
 
+
+const GenerateQrwithData=async(haseddata)=>{
+    try{
+          const url = await QRCode.toDataURL(haseddata);
+          return url;
+    }catch(err){
+        console.log("error generating qr with data",err)
+        return null}
+}
+
 export {
     GenerateQr,
-    DecrptQr
+    DecrptQr,
+    GenerateQrwithData
 }

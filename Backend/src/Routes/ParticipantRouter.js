@@ -1,5 +1,5 @@
 import express from 'express'
-import { CreateQr,VerifyQr} from '../Controller/Participation.js'
+import { CreateQr,VerifyQr,GetUrQrs} from '../Controller/Participation.js'
 import AuthMiddleware from '../Middleware/JwtMiddleware.js'
 import {GetUsers} from '../Utils/SocketConnection.js'
 
@@ -11,6 +11,6 @@ ParticipantRouter.get('/',(req,res)=>{
 
 ParticipantRouter.get('/qr',AuthMiddleware,CreateQr)
 ParticipantRouter.post('/verify',AuthMiddleware,VerifyQr)
-
+ParticipantRouter.get('/get-qr/:eventId',AuthMiddleware,GetUrQrs)
 
 export default ParticipantRouter

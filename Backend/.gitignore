@@ -4,3 +4,7 @@ cache.json
 
 Authencation.js
 UserActivity.js
+logs/
+src/Jobs/
+temp/
+CustomHttpLog.js

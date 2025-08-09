@@ -54,7 +54,8 @@ const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000);
 };
 
-const SendQr = async (title, location, time, qrHash, username, recipientEmail) => {
+const SendQr = async (title, location, time, username, recipientEmail) => {
+  console.log('🔖 Sending QR code email to:', recipientEmail),title,location,time,username;
   const Transponder = nodemailer.createTransport({
     service: "gmail",
     headers: {
@@ -63,38 +64,56 @@ const SendQr = async (title, location, time, qrHash, username, recipientEmail) =
       "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept",
     },
     auth: {
-      user: process.env.EMAIL, 
-      pass: process.env.PASSWORD, 
+      user: process.env.EMAIL,
+      pass: process.env.PASSWORD,
     },
   });
 
   try {
     const htmlContent = `
-      <div style="font-size: 20px; font-family: Arial, sans-serif; color: #333;">
-        <h2>Event QR Code</h2>
+      <div style="font-family: Arial, sans-serif; font-size: 16px; color: #333; padding: 20px;">
+        <h2 style="color: #2c3e50;">Reminder: <span style="color: #007BFF;">${title}</span> is Coming Up!</h2>
+        
         <p>Hello <strong>${username}</strong>,</p>
-        <p>We are excited to have you join the event titled <strong>${title}</strong>.</p>
-        <p><strong>Location:</strong> ${location}</p>
-        <p><strong>Time:</strong> ${time}</p>
-        <p>Here is your unique QR code to check in at the event:</p>
-        <p><img src="data:image/png;base64,${qrHash}" alt="QR Code" style="width: 200px; height: 200px;"/></p>
-        <p>Please make sure to scan the QR code to gain access to the event. The code will be valid for 24hrs.</p>
-        <p>Looking forward to your participation!</p>
+
+        <p>This is a friendly reminder that the event you've joined is happening in the next 24 hours.</p>
+
+        <ul style="line-height: 1.6;">
+          <li><strong>Event:</strong> ${title}</li>
+          <li><strong>Location:</strong> ${location}</li>
+          <li><strong>Time:</strong> ${time}</li>
+        </ul>
+
+        <p>✨ Great news! You can now access your event QR code directly on the website:</p>
+        <p>
+          <a href="http://localhost:5173/events/${encodeURIComponent(title)}" target="_blank" style="color: #007BFF;">
+            View Your QR Code Here
+          </a>
+        </p>
+
+        <p>Make sure to bring this QR code with you for entry. It's valid for 24 hours before the event.</p>
+
+        <p>We're excited to have you there!</p>
+
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #ccc;" />
+
+        <p style="font-size: 14px; color: #666;">If you have any questions or issues, feel free to reach out.</p>
       </div>
     `;
 
     await Transponder.sendMail({
-      from: process.env.EMAIL, 
-      to: recipientEmail,         
-      subject: `Your QR Code for ${title}`,
+      from: process.env.EMAIL,
+      to: recipientEmail,
+      subject: `Reminder: "${title}" is in 24 Hours – Get Your QR Code`,
       html: htmlContent,
     });
 
-    console.log(`QR Code sent to ${recipientEmail}`);
-  } catch (Err) {
-    console.log("Error while sending mail to", recipientEmail, Err);
+    console.log(`Reminder email sent to ${recipientEmail}`);
+  } catch (err) {
+    console.log("Error while sending mail to", recipientEmail, err);
   }
 };
+
 
 const TrialMail = async (recipientEmail, username = "User", subject = "Trial Email", message = "This is a test email.") => {
   const Transponder = nodemailer.createTransport({
@@ -132,6 +151,7 @@ const TrialMail = async (recipientEmail, username = "User", subject = "Trial Ema
     console.error("Error while sending trial email to", recipientEmail, error);
   }
 };
+
 
 
 export { sendMail, generateOTP,SendQr,TrialMail };

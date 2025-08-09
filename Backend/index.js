@@ -7,6 +7,9 @@ import {SocketConnection} from './src/Utils/SocketConnection.js';
 import {connectRedis} from './src/Utils/RedisUtil.js'
 import { pubClient,subClient } from './src/Utils/RedisUtil.js';
 import { createAdapter } from '@socket.io/redis-adapter';
+import agenda from './src/Jobs/agenda.js';
+import AutoQr from './src/Jobs/defineJobs.js';
+
 dotenv.config();
 
 const server = http.createServer(app);
@@ -26,6 +29,9 @@ const startServer = async () => {
     try {
         await ConnectDb();
         console.log('Database connected successfully');
+        await AutoQr(agenda);
+        await agenda.start();
+        console.log('Agenda started successfully');
         
         await connectRedis();
         await pubClient.connect();

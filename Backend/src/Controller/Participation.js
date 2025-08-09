@@ -1,7 +1,7 @@
 import ApiResponse from '../Utils/ApiResponse.js'
 import asyncHandler from '../Utils/AsyncHandler.js'
 import dotenv from 'dotenv'
-import {GenerateQr,DecrptQr} from '../Utils/CreateQr.js';
+import {GenerateQr,DecrptQr,GenerateQrwithData} from '../Utils/CreateQr.js';
 import ApiError from '../Utils/ApiError.js'
 import { v4 as uuidv4 } from 'uuid';
 import Event from '../Schema/Event.js'
@@ -12,24 +12,28 @@ import Participation from '../Schema/Participation.js'
 dotenv.config()
 const CreateQr = asyncHandler(async (req, res) => {
     const io=getIo()
-    const eventId = '67dd36b46576d57e23faf542';
+    const eventId = '687f2fd17f8fc40690a5f3f5';
     const validTill = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     const event = await Event.findById(eventId)
         .populate('Participants', 'name email')
         .select('Participants _id date location');
-    console.log(event)
+    console.log("event data",event)
+    console.log("eventId", event)
     if (!event) {
         throw new ApiError(404, "Event not found");
     }
     const exists = await QrCode.exists({ event: eventId });
+    console.log("exists", exists)
     if(exists){
-        throw new ApiError(400,'event qr already created')
+       return res.send(new ApiResponse(400, 'QR codes already generated for this event',exists));
     }
     const qrDocument = new QrCode({ event: eventId, qrData: [] });
     const participants=new Participation({event:eventId})
+    console.log("participants",participants,qrDocument)
     const qrResults = await Promise.all(
         event.Participants.map(async (user) => {
+            console.log("user", user)
             const qrId = uuidv4();
             const QrData = {
                 user_id: user._id,
@@ -46,14 +50,6 @@ const CreateQr = asyncHandler(async (req, res) => {
                 isUsed: false,
                 wholeHash: encryptedData
             });
-            io.emit('qr-data', {
-                user: user._id,
-                name: user.name,
-                email: user.email,
-                data,
-                encryptedData,
-                QrData
-            });
            
             return { user: user._id, name: user.name, email: user.email, data };
         })
@@ -61,7 +57,9 @@ const CreateQr = asyncHandler(async (req, res) => {
     await qrDocument.save();
     await participants.save()
     console.log(qrResults);
-    return res.send(new ApiResponse(200, 'Here are the QR codes', { qrResults, eventDate: event.date }));
+    return res.send(new ApiResponse(200, 'Here are the QR codes', {
+        qrResults
+            }));
 });
 
 const VerifyQr = asyncHandler(async (req, res) => {
@@ -102,20 +100,34 @@ const VerifyQr = asyncHandler(async (req, res) => {
         await participate.save()
       console.log('QR code entry deleted successfully.');
   
-      return res.send(new ApiResponse(200, 'Successfully decrypted and deleted QR', data));
+      return res.send(new ApiResponse(200, 'qr veried succesfully', data));
 });
 
-const GetUrQrs=asyncHandler(async(req,res)=>{
-    const user=req.user;
-    if(!user) throw new ApiError(400,'Please include cookies and eventId in req')
-    const eventId = req.query.eventId;
-    if (!eventId) throw new ApiError(400, 'Event ID is required');
-    
-})
+const GetUrQrs = asyncHandler(async (req, res) => {
+  const user = req.user;
+  if (!user) throw new ApiError(400, 'Please include cookies and eventId in req');
 
+  const { eventId } = req.params;
+  if (!eventId) throw new ApiError(400, 'Event ID is required');
 
+  const existingData = await QrCode.findOne(
+    { event: eventId, "qrData.user": req.user._id },
+    { "qrData.$": 1 }
+  );
+  console.log("existingData", existingData);
+
+  if (!existingData || !existingData.qrData?.length) {
+    return res.send(new ApiResponse(404, 'No QR data found for this user'));
+  }
+  const qrtag=await GenerateQrwithData(existingData.qrData[0].wholeHash)
+  return res.send(new ApiResponse(200, 'Here are your QR codes', {
+    qrData: existingData.qrData[0],
+    qrTag: qrtag
+  }));
+});
 
 export {
     CreateQr,
-    VerifyQr
+    VerifyQr,
+    GetUrQrs
 }
