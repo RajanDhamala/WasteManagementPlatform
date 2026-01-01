@@ -1,13 +1,73 @@
-"use client"
-import { Calendar, Search } from "lucide-react"
+import { useState } from "react"
+import { Calendar, Import, Search } from "lucide-react"
 import EventCard from "./EventCard"
 import { Link } from "react-router-dom"
 import { motion, useScroll, useTransform } from "framer-motion"
+import useStore from "@/ZustandStore/UserStore"
+import axios from 'axios'
+import { useQuery } from "@tanstack/react-query"
+import debounce from 'lodash/debounce';
+import { useCallback } from "react";
+
 
 const LandingPage = () => {
   const { scrollYProgress } = useScroll()
   const opacity = useTransform(scrollYProgress, [0, 1], [1, 0])
   const scale = useTransform(scrollYProgress, [0, 1], [1, 0.8])
+
+  const [email,setemail]=useState('')
+ const setAlert=useStore((state)=>state.setAlert)
+
+  const validateEmail = (email) => {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+  };
+
+  const fetchHomeEvents=async()=>{
+   const response=await axios.get(`${import.meta.env.VITE_BASE_URL}event/home`)
+   console.log(response.data)
+   return response.data
+  }
+  const {data,isError,isLoading,error}=useQuery({
+    queryKey:['HomeEvents'],
+    queryFn:fetchHomeEvents,
+    staleTime: 10 * 60 * 1000, 
+  onSuccess: (data) => {
+    console.log('Fetched Home Events:', data);
+  },
+  })
+
+   const SubscribeDb = async () => {
+    if (!validateEmail(email)) {
+      setAlert({ type: 'error', message: 'Invalid email address.' });
+      return;
+    }
+    console.log(email);
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_BASE_URL}event/subscribe`,
+        { email }
+      );
+      console.log(response.data);
+      if (response.data.statusCode === 200) {
+        setAlert({ type: 'success', message: response.data.message});
+        setemail('')
+      } else if (response.data.statusCode === 400) {
+        setAlert({ type: 'error', message: response.data.message });
+      }
+    } catch (err) {
+      console.log(err);
+      setAlert({ type: 'error', message: 'Error in subscribing' });
+    }
+  };
+
+ 
+  const HandelSubscribeClick = useCallback(
+    debounce(() => {
+      SubscribeDb();
+    }, 5000, { leading: true, trailing: false }),
+    [email] 
+  );
 
   return (
     <>
@@ -96,9 +156,7 @@ const LandingPage = () => {
             <p className="text-gray-600 max-w-2xl mx-auto">
               Join these community events and help make our environment cleaner and greener
             </p>
-          </motion.div>
-
-          {/* Events Grid */}
+          </motion.div>          {/* Events Grid */}
           <motion.div
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8"
             initial={{ opacity: 0, y: 50 }}
@@ -106,38 +164,34 @@ const LandingPage = () => {
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.4, staggerChildren: 0.1 }}
           >
-            <EventCard
-              title="Ghinaghat Cleanup Drive"
-              date="Sat, Apr 20 • 7:00 AM"
-              location="Ghinaghat, Biratnagar-3"
-              Peoples="45"
-              image={"./ghinaghat.jpg"}
-              status="Ongoing"
-            />
-            <EventCard
-              title="Keshaliya River Cleanup"
-              date="Sun, Apr 21 • 6:30 AM"
-              location="Keshaliya Bridge, Biratnagar-7"
-              Peoples="32"
-              image={"./ktm.jpg"}
-              status="Completed"
-            />
-            <EventCard
-              title="Tinpaini Market Cleanup"
-              date="Sat, Apr 27 • 7:30 AM"
-              location="Tinpaini Chowk, Biratnagar-5"
-              Peoples="28"
-              image={"./dirt.webp"}
-              status="Finshed"
-            />
-            <EventCard
-              title="Bargachhi Park Revival"
-              date="Sun, Apr 28 • 8:00 AM"
-              location="Bargachhi, Biratnagar-4"
-              Peoples="37"
-              status="Ongoing"
-              image={"./defulthu.jpg"}
-            />
+            {isLoading ? (
+              // Loading skeleton
+              [...Array(4)].map((_, index) => (
+                <div key={index} className="bg-white rounded-lg p-4 shadow-lg animate-pulse">
+                  <div className="w-full h-48 bg-gray-200 rounded-lg mb-4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                </div>
+              ))
+            ) : isError ? (
+              <div className="col-span-full text-center text-red-600">
+                Error loading events: {error?.message || 'Something went wrong'}
+              </div>
+            ) : (
+              data?.map((event) => (
+               <EventCard
+  key={event._id}
+  title={event.title}
+  date={new Date(event.date).toDateString()}
+  location={event.location}
+  EventImg={event.EventImg.length > 0 ? event.EventImg : ['./defulthu.jpg']}
+  status={event.EventStatus}
+  Peoples={event.participantCount}
+/>
+
+              ))
+            )}
           </motion.div>
 
           <motion.div
@@ -185,14 +239,14 @@ const LandingPage = () => {
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="text-green-100 hover:text-white">
+                  <Link to='/events' className="text-green-100 hover:text-white">
                     Events
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a href="#" className="text-green-100 hover:text-white">
+                  <Link to='/community' className="text-green-100 hover:text-white">
                     Communities
-                  </a>
+                  </Link>
                 </li>
                 <li>
                   <a href="#" className="text-green-100 hover:text-white">
@@ -209,16 +263,21 @@ const LandingPage = () => {
               <h4 className="text-lg font-semibold mb-4">Connect With Us</h4>
               <p className="text-green-100 mb-4">Join our newsletter to stay updated with the latest events.</p>
               <div className="flex gap-2">
-                <input
-                  type="email"
-                  name="email"
-                  placeholder="Enter your email"
-                  className="px-4 py-2 rounded-lg bg-green-700 text-white placeholder-green-200 flex-grow focus:outline-none"
-                />
+              <input
+              type="email"
+              onChange={(e) => setemail(e.target.value)}
+              value={email}
+              placeholder="Enter your email"
+              name="email"
+              required
+              className="px-4 py-2 rounded-lg bg-green-700 text-white placeholder-green-200 flex-grow focus:outline-none"
+              />
+
                 <motion.button
                   className="bg-green-600 px-4 py-2 rounded-lg hover:bg-green-500"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
+                  onClick={(e)=>HandelSubscribeClick()}
                 >
                   Subscribe
                 </motion.button>

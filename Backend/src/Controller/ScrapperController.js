@@ -6,6 +6,7 @@ import * as cheerio from "cheerio";
 import Book from '../Schema/Book.js' 
 import puppeteer, { ConsoleMessage } from "puppeteer";
 import fs from 'fs';
+import {Redisclient} from '../Utils/RedisUtil.js'
 
 
 dotenv.config()
@@ -120,74 +121,64 @@ const readCache = () => {
   return {}; 
 };
 
+const scrapeWebsite = async (url) => {
+  try {
+    const response = await axios.get(url);
+    console.log('Scraped content:', response.data);
+
+    const $ = cheerio.load(response.data);
+    const news = [];
+    $('.content-list.content-list--two-column div.media-object').each((index, item) => {
+      if (index >= 20) return false; 
+
+      const titleElement = $(item).find('h6.list-object__heading a.h6__link.list-object__heading-link');
+      const titleLink = 'https://www.channelnewsasia.com/' + titleElement.attr('href');
+      const field = $(item).find('p.list-object__category a.link').text().trim();
+      const time = $(item).find('div.list-object__datetime-duration span.timestamp.timeago').attr('data-lastupdated');
+      const Img = $(item).find('picture.image img.image').attr('src');
+      const title = titleElement.text().trim();
+
+      console.log('Category:', field, 'Title:', title, 'Link:', titleLink, 'Time:', time, 'Img:', Img);
+      news.push({ title, field, titleLink, time, Img });
+    });
+    return news;
+  } catch (error) {
+    console.error('Error scraping the website:', error);
+    throw new Error('Error scraping the website');
+  }
+};
+
 const ScrapNews = asyncHandler(async (req, res) => {
-  const { scrap } = req.query; 
+  const { scrap } = req.query;
   console.log("Scrap:", scrap);
 
-  const url = process.env.NEWS_URL; 
+  const url = process.env.NEWS_URL;
   console.log('Scraping URL:', url);
 
-
-  let cache = readCache();
+  let cachedData = await Redisclient.json.get('ScrappedNews', '$'); 
 
   if (scrap === 'true') {
     console.log('Scrap is true, fetching new data...');
-    try {
-      const response = await axios.get(url);
-      console.log('Scraped content:', response.data);
-      
-      cache[url] = response.data;
-      saveCache(cache);
-
-      return res.send(new ApiResponse(200, 'Successfully scraped website', {}));
-    } catch (error) {
-      console.error('Error scraping the website:', error);
-      return res.status(500).send(new ApiResponse(500, 'Error scraping the website', {}));
-    }
+    const news = await scrapeWebsite(url);
+    await Redisclient.json.set('ScrappedNews', '$',{news});
+    return res.send(new ApiResponse(200, 'Successfully scraped website', {}));
   } else {
-    if (cache[url]) {
-      console.log('Using cached content for:', url);
-      const cachedData = cache[url];
-
-      const $ = cheerio.load(cachedData);
-      const news = [];
-
-      $('.content-list.content-list--two-column div.media-object').each((index, item) => {
-        if (index >= 20) return false; 
-
-        const titleElement = $(item).find('h6.list-object__heading a.h6__link.list-object__heading-link');
-        const titleLink = 'https://www.channelnewsasia.com/' + titleElement.attr('href');
-        const field = $(item).find('p.list-object__category a.link').text().trim();
-        const time = $(item).find('div.list-object__datetime-duration span.timestamp.timeago').attr('data-lastupdated');
-        const Img = $(item).find('picture.image img.image').attr('src');
-        const title = titleElement.text().trim();
-
-        console.log('Category:', field, 'Title:', title, 'Link:', titleLink, 'Time:', time, 'Img:', Img);
-        news.push({ title, field, titleLink, time, Img });
-      });
-
-      return res.send(new ApiResponse(200, 'Using cached content', { news }));
+    if (cachedData) {
+      console.log('Using cached content from Redis:', url);
+      return res.send(new ApiResponse(200, 'Using cached content', { news: cachedData }));
     }
-
-    try {
-      const response = await axios.get(url);
-      console.log('Scraped content:', response.data);
-
-      cache[url] = response.data;
-      saveCache(cache);
-
-      return res.send(new ApiResponse(200, 'Successfully scraped website', {}));
-    } catch (error) {
-      console.error('Error scraping the website:', error);
-      return res.status(500).send(new ApiResponse(500, 'Error scraping the website', {}));
-    }
+    const news = await scrapeWebsite(url);
+    console.log(news)
+    await Redisclient.json.set('ScrappedNews', '$', {news});
+    return res.send(new ApiResponse(200, 'Successfully scraped website', {}));
   }
 });
+
 
 const Crawling = asyncHandler(async (req, res) => {
   console.log("Crawling booss rn...");
 
-  const browser=await puppeteer.launch({headless:true});
+  const browser=await puppeteer.launch({headless:false});
   const tab=await browser.newPage();
 
   await tab.goto('https://weather-app-react-two-theta.vercel.app/',{waitUntil:'networkidle2'});
@@ -209,8 +200,6 @@ const Crawling = asyncHandler(async (req, res) => {
   // fs.writeFileSync('weather.png',img);
   await tab.waitForNetworkIdle()
   console.log('Page loaded');
-  const divs= tab.locator('//*[@id="root"]/div[3]/div/div').allTextContent();
-  console.log(divs)
 
   return res.send(new ApiResponse(200, 'Successfully crawled website',));
   
@@ -233,9 +222,37 @@ const ScrapMaster=asyncHandler(async(req,res)=>{
 
   console.log(heading);
 
- 
-
   return res.send(new ApiResponse(200, 'Successfully scraped Master',));
+})
+
+
+const Pagination=asyncHandler(async(req,res)=>{
+  const limits=req.params.limits;
+  const page=req.params.page
+
+  const skip=(page-1)*limits;
+  const totalBooks=await Book.countDocuments({});
+  const books=await Book.find({})
+  .skip(skip).limit(limits).sort({createdAt:-1});
+
+  console.log(books);
+  return res.send(new ApiResponse(200, 'Successfully fetched books', {totalBooks,books}));
+})
+
+
+const ScrapChesscom=asyncHandler(async(req,res)=>{
+  console.log("scrapping chesscom boss")
+  try{
+      const reponsehai=await axios.get('https://www.chess.com/events/2025-freestyle-chess-grand-slam-weissenhaus-ko/01-01/Sindarov_Javokhir-Nakamura_Hikaru')
+      const html=reponsehai.data;
+      const $=cheerio.load(html);
+      console.log(html);
+
+      return res.send(new ApiResponse(200, 'Successfully fetched chesscom',html));
+
+  }catch(err){  
+    console.log(err)
+  }
 })
 
 export {
@@ -243,5 +260,7 @@ export {
     Showbooks,
     ScrapNews,
     Crawling,
-    ScrapMaster
+    ScrapMaster,
+    Pagination,
+    ScrapChesscom
 }

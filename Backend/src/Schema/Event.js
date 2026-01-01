@@ -8,7 +8,7 @@ const EventSchema=new mongoose.Schema({
         required:true
     },slug:{
         type:String,
-        required:true
+        required:false
     },
     time:{
         type:String,
@@ -62,8 +62,22 @@ const EventSchema=new mongoose.Schema({
             ref:'Review',
             required:false
         }
-    ]
+    ],Priority:{
+        type:Boolean
+    },locationPoint: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number], 
+      default: [0, 0]
+    }
+  }
 },{timestamps:true})
+
+EventSchema.index({ locationPoint: '2dsphere' });
 
 const Event=mongoose.model('Event',EventSchema)
 
